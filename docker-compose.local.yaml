@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   mysql:
     image: mysql:8.0
@@ -9,7 +11,7 @@ services:
       MYSQL_USER: synapseuser
       MYSQL_PASSWORD: synapsepass
     ports:
-      - "3307:3306"
+      - '3307:3306'
     volumes:
       - mysql_data:/var/lib/mysql
 
@@ -17,15 +19,10 @@ services:
     build: .
     container_name: backend_local
     restart: always
-    environment:
-      NODE_ENV: development
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: synapseuser
-      DB_PASSWORD: synapsepass
-      DB_NAME: synapse
+    env_file:
+      - .env.local
     ports:
-      - "3000:3000"
+      - '3000:3000'
     depends_on:
       - mysql
     volumes:
