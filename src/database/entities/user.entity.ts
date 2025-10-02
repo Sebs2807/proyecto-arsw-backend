@@ -17,11 +17,11 @@ export class UserEntity {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
   password: string;
 
-  @Column({ type: 'enum', enum: ['USER', 'ADMIN'], default: 'USER' })
-  role: 'USER' | 'ADMIN';
+  @Column({ type: 'enum', enum: ['LOCAL', 'GOOGLE'], default: 'LOCAL' })
+  authProvider: 'LOCAL' | 'GOOGLE';
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
