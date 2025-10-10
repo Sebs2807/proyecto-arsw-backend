@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BoardsController } from 'src/app/modules/boards/boards.controller';
 import { BoardsService } from 'src/app/modules/boards/boards.service';
-import { JwtAuthGuard } from 'src/app/modules/auth/jwt-auth.guar';
+import { JwtAuthGuard } from 'src/app/modules/auth/jwt-auth.guard';
 import { BoardEntity } from 'src/database/entities/board.entity';
 import { UserEntity } from 'src/database/entities/user.entity';
+import { Request } from 'express';
 
 describe('BoardsController', () => {
   let controller: BoardsController;
@@ -33,22 +34,21 @@ describe('BoardsController', () => {
     boardsService = module.get<BoardsService>(BoardsService);
   });
 
-const mockUser: UserEntity = {
-  id: 1,
-  email: 'test@mail.com',
-  password: 'hashed',
-  name: 'Tester',
-  authProvider: 'LOCAL',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  boards: [],
-} as unknown as UserEntity;
-
+  const mockUser: UserEntity = {
+    id: '1',
+    email: 'test@mail.com',
+    password: 'hashed',
+    name: 'Tester',
+    authProvider: 'LOCAL',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    boards: [],
+  } as unknown as UserEntity;
 
   const mockBoard: BoardEntity = {
-    id: 1,
-    title: 'Tablero de prueba',
-    description: 'Descripción de prueba',
+    id: '1',
+    title: 'Test Board',
+    description: 'Test Description',
     createdBy: mockUser,
     members: [],
     createdAt: new Date(),
@@ -56,55 +56,62 @@ const mockUser: UserEntity = {
   };
 
   // --- CREATE ---
-  it('debería crear un board', async () => {
+  it('should create a board', async () => {
     jest.spyOn(boardsService, 'createBoard').mockResolvedValue(mockBoard);
 
+    const mockRequest = {
+      user: mockUser,
+    } as unknown as Request & { user: UserEntity };
+
     const result = await controller.create(
-      { title: 'Tablero de prueba', description: 'Descripción de prueba', members: [] },
-      { user: mockUser },
+      { title: 'Test Board', description: 'Test Description', members: [] },
+      mockRequest,
     );
 
     expect(boardsService.createBoard).toHaveBeenCalledWith(
-      'Tablero de prueba',
-      'Descripción de prueba',
+      'Test Board',
+      'Test Description',
       mockUser,
       [],
     );
     expect(result).toEqual(mockBoard);
   });
 
-  it('debería listar todos los boards', async () => {
+  // --- FIND ALL ---
+  it('should return all boards', async () => {
     jest.spyOn(boardsService, 'findAll').mockResolvedValue([mockBoard]);
 
     const result = await controller.findAll();
     expect(result).toEqual([mockBoard]);
   });
 
-  it('debería retornar un board por id', async () => {
+  // --- FIND ONE ---
+  it('should return a board by id', async () => {
     jest.spyOn(boardsService, 'findOne').mockResolvedValue(mockBoard);
 
-    const result = await controller.findOne(1);
+    const result = await controller.findOne('1');
     expect(result).toEqual(mockBoard);
   });
 
-  it('debería actualizar un board', async () => {
+  // --- UPDATE ---
+  it('should update a board', async () => {
     const updatedBoard: BoardEntity = {
       ...mockBoard,
-      title: 'Tablero actualizado',
+      title: 'Updated Board',
       updatedAt: new Date(),
     };
 
     jest.spyOn(boardsService, 'updateBoard').mockResolvedValue(updatedBoard);
 
-    const result = await controller.update(1, { title: 'Tablero actualizado' });
+    const result = await controller.update('1', { title: 'Updated Board' });
     expect(result).toEqual(updatedBoard);
   });
 
   // --- DELETE ---
-  it('debería eliminar un board', async () => {
+  it('should delete a board', async () => {
     jest.spyOn(boardsService, 'deleteBoard').mockResolvedValue({ deleted: true });
 
-    const result = await controller.remove(1);
+    const result = await controller.remove('1');
     expect(result).toEqual({ deleted: true });
   });
 });

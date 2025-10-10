@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from 'src/app/modules/auth/auth.controller';
 import { AuthService } from 'src/app/modules/auth/auth.service';
-import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
-import { UserEntity } from 'src/database/entities/user.entity';
+import { JwtAuthGuard } from 'src/app/modules/auth/jwt-auth.guard';
+import { ExecutionContext } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: AuthService;
-  let jwtService: JwtService;
   let res: Partial<Response>;
 
   beforeEach(async () => {
@@ -18,67 +18,119 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: {
-            validateUser: jest.fn(),
-            registerWithEmail: jest.fn(),
-          },
-        },
-        {
-          provide: JwtService,
-          useValue: {
-            sign: jest.fn().mockReturnValue('mocked-jwt-token'),
+            loginOrCreateGoogleUser: jest.fn(),
+            refreshAccessToken: jest.fn(),
           },
         },
       ],
-    }).compile();
+    })
+      // Override real guards
+      .overrideGuard(AuthGuard('google'))
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = moduleRef.get<AuthController>(AuthController);
     authService = moduleRef.get<AuthService>(AuthService);
-    jwtService = moduleRef.get<JwtService>(JwtService);
 
     res = {
+      redirect: jest.fn(),
+      cookie: jest.fn(),
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
-      cookie: jest.fn().mockReturnThis(),
     };
   });
 
-  it('debería retornar error si las credenciales son inválidas', async () => {
-    jest.spyOn(authService, 'validateUser').mockResolvedValue(null);
+  // --- GOOGLE AUTH REDIRECT ---
+  it('should redirect to login if Google authentication fails', async () => {
+    const req: any = { user: null };
+    process.env.FRONTEND_URL = 'https://frontend.com';
 
-    await controller.login({ email: 'test@mail.com', password: 'wrong' }, res as Response);
+    await controller.googleAuthRedirect(req, res as any);
+
+    expect(res.redirect).toHaveBeenCalledWith(
+      'https://frontend.com/login?error=google_auth_failed',
+    );
+  });
+
+  it('should authenticate correctly with Google and set cookies', async () => {
+    const req: any = {
+      user: {
+        email: 'test@mail.com',
+        firstName: 'Test',
+        lastName: 'User',
+        picture: 'pic.jpg',
+        refreshToken: 'google-refresh',
+      },
+    };
+    process.env.FRONTEND_URL = 'https://frontend.com';
+
+    jest.spyOn(authService, 'loginOrCreateGoogleUser').mockResolvedValue({
+      accessToken: 'mockAccess',
+      refreshToken: 'mockRefresh',
+    });
+
+    await controller.googleAuthRedirect(req, res as any);
+
+    expect(authService.loginOrCreateGoogleUser).toHaveBeenCalledWith(
+      'test@mail.com',
+      'Test',
+      'User',
+      'pic.jpg',
+      'google-refresh',
+    );
+    expect(res.cookie).toHaveBeenCalledTimes(2);
+    expect(res.redirect).toHaveBeenCalledWith('https://frontend.com/dashboard');
+  });
+
+  // --- REFRESH TOKEN ---
+  it('should return an error if there is no refresh token', async () => {
+    const req: any = { cookies: {} };
+
+    const result = await controller.refreshToken(req, res as any);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Credenciales inválidas' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'No refresh token found' });
+    expect(result).toBeUndefined();
   });
 
-  it('debería loguear correctamente si las credenciales son válidas', async () => {
-    const user: Partial<UserEntity> = { id: 1, email: 'test@mail.com' };
+  it('should refresh token successfully', async () => {
+    const req: any = { cookies: { refreshToken: 'oldToken' } };
 
-    jest.spyOn(authService, 'validateUser').mockResolvedValue(user as UserEntity);
-
-    await controller.login({ email: 'test@mail.com', password: '1234' }, res as Response);
-
-    expect(authService.validateUser).toHaveBeenCalled();
-    expect(jwtService.sign).toHaveBeenCalledWith({ id: user.id, email: user.email });
-    expect(res.cookie).toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith({
-      message: 'Login exitoso',
-      user: { id: user.id, email: user.email },
+    jest.spyOn(authService, 'refreshAccessToken').mockResolvedValue({
+      accessToken: 'newAccess',
+      refreshToken: 'newRefresh',
     });
+
+    const result = await controller.refreshToken(req, res as any);
+
+    expect(authService.refreshAccessToken).toHaveBeenCalledWith('oldToken');
+    expect(res.cookie).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ accessToken: 'newAccess' });
   });
 
-  it('debería registrar un usuario exitosamente', async () => {
-    const user: Partial<UserEntity> = { id: 2, email: 'new@mail.com' };
+  // --- PROFILE ---
+  it('should return the authenticated user profile', () => {
+    const req: any = {
+      user: {
+        id: '1',
+        email: 'user@mail.com',
+        firstName: 'User',
+        lastName: 'Name',
+        picture: 'avatar.jpg',
+        roles: ['USER'],
+      },
+    };
 
-    jest.spyOn(authService, 'registerWithEmail').mockResolvedValue(user as UserEntity);
-
-    await controller.register({ email: user.email!, password: '1234', name: '' }, res as Response);
-
-    expect(authService.registerWithEmail).toHaveBeenCalled();
-    expect(res.cookie).toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith({
-      message: 'Registro exitoso',
-      user: { id: user.id, email: user.email },
+    const result = controller.getProfile(req);
+    expect(result).toEqual({
+      id: '1',
+      email: 'user@mail.com',
+      firstName: 'User',
+      lastName: 'Name',
+      picture: 'avatar.jpg',
+      roles: ['USER'],
     });
   });
 });

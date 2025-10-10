@@ -2,100 +2,168 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from 'src/app/modules/auth/auth.service';
 import { UsersService } from 'src/app/modules/users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 import { UnauthorizedException } from '@nestjs/common';
+import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { UserEntity } from 'src/database/entities/user.entity';
-
-jest.mock('bcrypt');
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usersService: UsersService;
-  let jwtService: JwtService;
 
-  const mockUserService = {
+  const mockUsersService = {
     findByEmail: jest.fn(),
     createUser: jest.fn(),
+    generateNewRefreshToken: jest.fn(),
   };
 
   const mockJwtService = {
     sign: jest.fn(),
+    verify: jest.fn(),
+  };
+
+  const mockUserDbService = {
+    findById: jest.fn(),
+    repository: { save: jest.fn() },
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: UsersService, useValue: mockUserService },
+        { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: UsersDBService, useValue: mockUserDbService },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    usersService = module.get<UsersService>(UsersService);
-    jwtService = module.get<JwtService>(JwtService);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  afterEach(() => jest.clearAllMocks());
+
+  // --- VALIDATE GOOGLE USER ---
+  it('should throw UnauthorizedException if Google user not found', async () => {
+    mockUsersService.findByEmail.mockResolvedValue(null);
+
+    await expect(
+      service.validateGoogleUser({
+        email: 'none@example.com',
+        firstName: 'None',
+        lastName: 'User',
+        picture: 'pic.jpg',
+        refreshToken: 'refresh123',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
   });
 
-  it('should validate user successfully', async () => {
-    const mockUser = { email: 'test@example.com', password: 'hashed' } as UserEntity;
-    mockUserService.findByEmail.mockResolvedValue(mockUser);
-    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+  it('should return user if Google user exists', async () => {
+    const mockUser: UserEntity = {
+      id: 'adasdasdasda',
+      email: 'test@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      picture: 'pic.jpg',
+      JWTRefreshToken: 'refresh123',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockUsersService.findByEmail.mockResolvedValue(mockUser);
 
-    const result = await service.validateUser('test@example.com', '1234');
-    expect(result).toEqual(mockUser);
+    const result = await service.validateGoogleUser({
+      email: 'test@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      picture: 'pic.jpg',
+      refreshToken: 'refresh123',
+    });
+
+    expect(result).toBe(mockUser);
   });
 
-  it('should return null if user not found', async () => {
-    mockUserService.findByEmail.mockResolvedValue(null);
-    const result = await service.validateUser('unknown@example.com', '1234');
-    expect(result).toBeNull();
-  });
+  // --- LOGIN OR CREATE GOOGLE USER ---
+  it('should create a new user if not found', async () => {
+    const newUser: UserEntity = {
+      id: 'adasdasdasda',
+      email: 'new@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      picture: 'pic.jpg',
+      JWTRefreshToken: 'googleRefresh',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockUsersService.findByEmail.mockResolvedValue(null);
+    mockUsersService.createUser.mockResolvedValue(newUser);
+    mockJwtService.sign.mockReturnValueOnce('accessToken').mockReturnValueOnce('refreshToken');
 
-  it('should return null if password mismatch', async () => {
-    const mockUser = { password: 'hashed' } as UserEntity;
-    mockUserService.findByEmail.mockResolvedValue(mockUser);
-    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-
-    const result = await service.validateUser('test@example.com', 'wrong');
-    expect(result).toBeNull();
-  });
-
-  it('should login and return access_token', async () => {
-    const mockUser = { id: 1, email: 'test@example.com' } as UserEntity;
-    mockJwtService.sign.mockReturnValue('jwt_token');
-
-    const result = await service.login(mockUser);
-    expect(result).toEqual({ access_token: 'jwt_token' });
-  });
-
-  it('should throw UnauthorizedException if google user not found', async () => {
-    mockUserService.findByEmail.mockResolvedValue(null);
-    await expect(service.validateGoogleUser({ email: 'none@example.com' })).rejects.toThrow(
-      UnauthorizedException,
+    const result = await service.loginOrCreateGoogleUser(
+      'new@example.com',
+      'Test',
+      'User',
+      'pic.jpg',
+      'googleRefresh',
     );
+
+    expect(mockUsersService.createUser).toHaveBeenCalled();
+    expect(mockUserDbService.repository.save).toHaveBeenCalled();
+    expect(result).toEqual({ accessToken: 'accessToken', refreshToken: 'refreshToken' });
   });
 
-  it('should register a new user', async () => {
-    const dto = { email: 'new@example.com', password: '1234', name: 'Test' };
-    mockUserService.findByEmail.mockResolvedValue(null);
-    (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
-    mockUserService.createUser.mockResolvedValue({ id: 1, ...dto });
+  it('should reuse existing user and refresh token', async () => {
+    const existingUser: UserEntity = {
+      id: 'adasdasdasda',
+      email: 'exists@example.com',
+      firstName: 'Old',
+      lastName: 'User',
+      picture: 'old.jpg',
+      JWTRefreshToken: 'oldRefresh',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockUsersService.findByEmail.mockResolvedValue(existingUser);
+    mockUsersService.generateNewRefreshToken.mockResolvedValue('newRefresh');
+    mockJwtService.sign.mockReturnValue('accessToken');
 
-    const result = await service.registerWithEmail(dto as any);
-    expect(result).toMatchObject({ email: dto.email });
-    expect(bcrypt.hash).toHaveBeenCalled();
+    const result = await service.loginOrCreateGoogleUser(
+      'exists@example.com',
+      'Test',
+      'User',
+      'pic.jpg',
+      'googleRefresh',
+    );
+
+    expect(mockUsersService.findByEmail).toHaveBeenCalledWith('exists@example.com');
+    expect(mockUsersService.generateNewRefreshToken).toHaveBeenCalledWith('adasdasdasda');
+    expect(result).toEqual({ accessToken: 'accessToken', refreshToken: 'newRefresh' });
   });
 
-  it('should register or return existing google user', async () => {
-    const googleUser = { email: 'google@example.com', displayName: 'GUser' };
-    mockUserService.findByEmail.mockResolvedValue(null);
-    mockUserService.createUser.mockResolvedValue({ id: 1, email: googleUser.email });
+  // --- REFRESH ACCESS TOKEN ---
+  it('should refresh access token successfully', async () => {
+    const mockUser: UserEntity = {
+      id: 'adasdasdasda',
+      email: 'test@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      picture: 'pic.jpg',
+      JWTRefreshToken: 'validToken',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-    const result = await service.registerGoogleUser(googleUser);
-    expect(result).toHaveProperty('email', googleUser.email);
+    mockJwtService.verify.mockReturnValue({ id: 'adasdasdasda', email: 'test@example.com' });
+    mockUserDbService.findById.mockResolvedValue(mockUser);
+    mockJwtService.sign.mockReturnValueOnce('newAccess').mockReturnValueOnce('newRefresh');
+
+    const result = await service.refreshAccessToken('validToken');
+
+    expect(mockUserDbService.repository.save).toHaveBeenCalled();
+    expect(result).toEqual({ accessToken: 'newAccess', refreshToken: 'newRefresh' });
+  });
+
+  it('should throw if refresh token is invalid', async () => {
+    mockJwtService.verify.mockImplementation(() => {
+      throw new Error('Invalid token');
+    });
+
+    await expect(service.refreshAccessToken('invalid')).rejects.toThrow(UnauthorizedException);
   });
 });
