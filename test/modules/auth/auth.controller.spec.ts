@@ -3,7 +3,6 @@ import { AuthController } from 'src/app/modules/auth/auth.controller';
 import { AuthService } from 'src/app/modules/auth/auth.service';
 import { Response } from 'express';
 import { JwtAuthGuard } from 'src/app/modules/auth/jwt-auth.guard';
-import { ExecutionContext } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 describe('AuthController', () => {
@@ -24,7 +23,7 @@ describe('AuthController', () => {
         },
       ],
     })
-      // Override real guards
+      // Override guards to avoid real Google/JWT auth during tests
       .overrideGuard(AuthGuard('google'))
       .useValue({ canActivate: jest.fn(() => true) })
       .overrideGuard(JwtAuthGuard)
@@ -34,6 +33,7 @@ describe('AuthController', () => {
     controller = moduleRef.get<AuthController>(AuthController);
     authService = moduleRef.get<AuthService>(AuthService);
 
+    // Mocked Express response object
     res = {
       redirect: jest.fn(),
       cookie: jest.fn(),
@@ -124,6 +124,7 @@ describe('AuthController', () => {
     };
 
     const result = controller.getProfile(req);
+
     expect(result).toEqual({
       id: '1',
       email: 'user@mail.com',

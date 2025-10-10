@@ -91,6 +91,6 @@ describe('BoardsService', () => {
 
     const result = await service.deleteBoard('1');
     expect(result).toEqual({ deleted: true });
-    expect(repo.delete).toHaveBeenCalledWith(1);
+    expect(repo.delete).toHaveBeenCalledWith('1');
   });
 });
