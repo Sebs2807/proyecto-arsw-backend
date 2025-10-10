@@ -1,18 +1,20 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuthModule } from '../app/modules/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../app/modules/auth/auth.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { UserEntity } from 'src/database/entities/user.entity';
+import { BoardEntity } from 'src/database/entities/board.entity';
 import { UsersModule } from './modules/users/users.module';
 import { BoardsModule } from './modules/boards/boards.module';
-import { BoardEntity } from 'src/database/entities/board.entity';
-
+import { join } from 'path';
+import { readFileSync } from 'fs';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env.local', '.env'],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -27,6 +29,10 @@ import { BoardEntity } from 'src/database/entities/board.entity';
         entities: [UserEntity, BoardEntity],
         synchronize: true,
         logging: false,
+        ssl: config.get('DB_SSL') === 'true' ? {
+          ca: readFileSync(join(__dirname, '..', '..', 'certs', 'ca.pem')),
+          rejectUnauthorized: true,
+        } : undefined,
       }),
     }),
     DatabaseModule,
