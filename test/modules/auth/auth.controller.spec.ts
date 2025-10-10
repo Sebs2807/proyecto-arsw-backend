@@ -23,7 +23,7 @@ describe('AuthController', () => {
         },
       ],
     })
-      // Override guards to avoid real Google/JWT auth during tests
+
       .overrideGuard(AuthGuard('google'))
       .useValue({ canActivate: jest.fn(() => true) })
       .overrideGuard(JwtAuthGuard)
@@ -33,7 +33,6 @@ describe('AuthController', () => {
     controller = moduleRef.get<AuthController>(AuthController);
     authService = moduleRef.get<AuthService>(AuthService);
 
-    // Mocked Express response object
     res = {
       redirect: jest.fn(),
       cookie: jest.fn(),
@@ -92,7 +91,6 @@ describe('AuthController', () => {
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ message: 'No se encontró refresh token' });
-    // FIXED: Assert that the result is the mocked response object
     expect(result).toEqual(res);
   });
 

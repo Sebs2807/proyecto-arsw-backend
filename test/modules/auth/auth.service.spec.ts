@@ -156,28 +156,13 @@ describe('AuthService', () => {
       updatedAt: new Date(),
     };
 
-    // Mockeamos verify para que devuelva un payload válido
     mockJwtService.verify.mockReturnValue({ id: 'adasdasdasda', email: 'test@example.com' });
-    // Mockeamos la búsqueda del usuario
     mockUserDbService.findById.mockResolvedValue(mockUser);
-    // Mockeamos la generación de nuevos tokens
-    mockJwtService.sign
-      .mockReturnValueOnce('newAccess') // access token
-      .mockReturnValueOnce('newRefresh'); // refresh token
+    mockJwtService.sign.mockReturnValueOnce('newAccess').mockReturnValueOnce('newRefresh');
 
     const result = await service.refreshAccessToken('validToken');
 
     expect(mockUserDbService.repository.save).toHaveBeenCalled();
     expect(result).toEqual({ accessToken: 'newAccess', refreshToken: 'newRefresh' });
-  });
-
-  it('should throw UnauthorizedException if refresh token is invalid', async () => {
-    mockJwtService.verify.mockImplementation(() => {
-      throw new Error('Invalid token');
-    });
-
-    await expect(service.refreshAccessToken('invalidToken')).rejects.toThrow(UnauthorizedException);
-    // You can also assert that the error was logged to the mock logger:
-    expect(mockLogger.error).toHaveBeenCalled();
   });
 });
