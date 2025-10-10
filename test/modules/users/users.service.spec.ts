@@ -32,7 +32,7 @@ describe('UsersService', () => {
   });
 
   it('should find user by email', async () => {
-    const mockUser = { id: 1, email: 'test@example.com' } as UserEntity;
+    const mockUser = { id: '1', email: 'test@example.com' } as UserEntity;
     mockUserRepository.findOne.mockResolvedValue(mockUser);
 
     const result = await service.findByEmail('test@example.com');
@@ -60,7 +60,7 @@ describe('UsersService', () => {
   });
 
   it('should return all users', async () => {
-    const mockUsers = [{ id: 1 }, { id: 2 }] as UserEntity[];
+    const mockUsers = [{ id: '1' }, { id: '2' }] as UserEntity[];
     mockUserRepository.find.mockResolvedValue(mockUsers);
 
     const result = await service.findAll();

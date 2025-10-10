@@ -2,7 +2,7 @@ import { Controller, Get, UseGuards, Req, Res } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import type { Request, Response } from 'express';
-import { JwtAuthGuard } from './jwt-auth.guar';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 interface RequestWithCookies extends Request {
   cookies: { [key: string]: string };
