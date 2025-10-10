@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from 'src/app/modules/auth/auth.service';
 import { UsersService } from 'src/app/modules/users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, Logger } from '@nestjs/common';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { UserEntity } from 'src/database/entities/user.entity';
 
@@ -25,6 +25,12 @@ describe('AuthService', () => {
     repository: { save: jest.fn() },
   };
 
+  const mockLogger = {
+    error: jest.fn(), // THIS MOCKS THE LOGGER TO SUPPRESS CONSOLE OUTPUT
+    log: jest.fn(),
+    warn: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -32,6 +38,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: UsersDBService, useValue: mockUserDbService },
+        { provide: Logger, useValue: mockLogger }, // Added Logger mock
       ],
     }).compile();
 
@@ -170,5 +177,7 @@ describe('AuthService', () => {
     });
 
     await expect(service.refreshAccessToken('invalidToken')).rejects.toThrow(UnauthorizedException);
+    // You can also assert that the error was logged to the mock logger:
+    expect(mockLogger.error).toHaveBeenCalled();
   });
 });

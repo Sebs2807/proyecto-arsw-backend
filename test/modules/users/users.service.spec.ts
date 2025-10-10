@@ -9,7 +9,7 @@ import { Logger } from '@nestjs/common';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let repo: Repository<UserEntity>;
+  // REMOVED: let repo: Repository<UserEntity>;
   let jwtService: JwtService;
 
   const mockUserRepository = {
@@ -37,7 +37,7 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    repo = module.get<Repository<UserEntity>>(getRepositoryToken(UserEntity));
+    // REMOVED: repo = module.get<Repository<UserEntity>>(getRepositoryToken(UserEntity));
     jwtService = module.get<JwtService>(JwtService);
   });
 
@@ -51,7 +51,9 @@ describe('UsersService', () => {
     const result = await service.findByEmail('test@example.com');
 
     expect(result).toEqual(mockUser);
-    expect(repo.findOne).toHaveBeenCalledWith({ where: { email: 'test@example.com' } });
+    expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+      where: { email: 'test@example.com' },
+    });
   });
 
   it('should return null if no user is found', async () => {
@@ -73,8 +75,8 @@ describe('UsersService', () => {
     const result = await service.createUser(userData);
 
     expect(result).toEqual(mockUser);
-    expect(repo.create).toHaveBeenCalledWith(userData);
-    expect(repo.save).toHaveBeenCalledWith(mockUser);
+    expect(mockUserRepository.create).toHaveBeenCalledWith(userData);
+    expect(mockUserRepository.save).toHaveBeenCalledWith(mockUser);
   });
 
   // --- FIND ALL USERS ---
@@ -85,7 +87,7 @@ describe('UsersService', () => {
     const result = await service.findAll();
 
     expect(result).toEqual(mockUsers);
-    expect(repo.find).toHaveBeenCalled();
+    expect(mockUserRepository.find).toHaveBeenCalled();
   });
 
   // --- GENERATE NEW REFRESH TOKEN ---

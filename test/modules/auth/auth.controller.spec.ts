@@ -92,7 +92,8 @@ describe('AuthController', () => {
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ message: 'No se encontró refresh token' });
-    expect(result).toBeUndefined();
+    // FIXED: Assert that the result is the mocked response object
+    expect(result).toEqual(res);
   });
 
   it('should refresh token successfully', async () => {
