@@ -9,7 +9,6 @@ import { Logger } from '@nestjs/common';
 
 describe('UsersService', () => {
   let service: UsersService;
-  // REMOVED: let repo: Repository<UserEntity>;
   let jwtService: JwtService;
 
   const mockUserRepository = {
@@ -37,7 +36,6 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    // REMOVED: repo = module.get<Repository<UserEntity>>(getRepositoryToken(UserEntity));
     jwtService = module.get<JwtService>(JwtService);
   });
 
