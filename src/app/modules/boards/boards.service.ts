@@ -35,16 +35,16 @@ export class BoardsService {
     return this.boardsRepository.find();
   }
 
-  async findOne(id: number): Promise<BoardEntity | null> {
+  async findOne(id: string): Promise<BoardEntity | null> {
     return this.boardsRepository.findOne({ where: { id } });
   }
 
-  async updateBoard(id: number, updateData: Partial<BoardEntity>) {
+  async updateBoard(id: string, updateData: Partial<BoardEntity>) {
     await this.boardsRepository.update(id, updateData);
     return this.findOne(id);
   }
 
-  async deleteBoard(id: number) {
+  async deleteBoard(id: string) {
     await this.boardsRepository.delete(id);
     return { deleted: true };
   }

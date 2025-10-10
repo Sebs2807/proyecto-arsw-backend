@@ -8,7 +8,6 @@ import { UsersModule } from './modules/users/users.module';
 import { BoardsModule } from './modules/boards/boards.module';
 import { BoardEntity } from 'src/database/entities/board.entity';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({
