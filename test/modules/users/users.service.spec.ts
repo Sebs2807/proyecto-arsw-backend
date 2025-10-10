@@ -2,13 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from 'src/app/modules/users/users.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserEntity } from 'src/database/entities/user.entity';
+import { JwtService } from '@nestjs/jwt';
+import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { Repository } from 'typeorm';
+import { Logger } from '@nestjs/common';
 
 describe('UsersService', () => {
   let service: UsersService;
   let repo: Repository<UserEntity>;
+  let jwtService: JwtService;
 
-  // Mocked repository methods
   const mockUserRepository = {
     findOne: jest.fn(),
     find: jest.fn(),
@@ -16,16 +19,26 @@ describe('UsersService', () => {
     save: jest.fn(),
   };
 
+  const mockUsersDBService = {
+    repository: mockUserRepository,
+  };
+
+  const mockJwtService = {
+    sign: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        { provide: getRepositoryToken(UserEntity), useValue: mockUserRepository },
+        { provide: UsersDBService, useValue: mockUsersDBService },
+        { provide: JwtService, useValue: mockJwtService },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
     repo = module.get<Repository<UserEntity>>(getRepositoryToken(UserEntity));
+    jwtService = module.get<JwtService>(JwtService);
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -73,5 +86,58 @@ describe('UsersService', () => {
 
     expect(result).toEqual(mockUsers);
     expect(repo.find).toHaveBeenCalled();
+  });
+
+  // --- GENERATE NEW REFRESH TOKEN ---
+  it('should generate a new refresh token and save it', async () => {
+    const user: UserEntity = {
+      id: '1',
+      email: 'user@test.com',
+      JWTRefreshToken: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as UserEntity;
+    const newToken = 'mockNewToken';
+
+    mockUserRepository.findOne.mockResolvedValue(user);
+    mockJwtService.sign.mockReturnValue(newToken);
+    mockUserRepository.save.mockResolvedValue({ ...user, JWTRefreshToken: newToken });
+
+    const result = await service.generateNewRefreshToken('1');
+
+    expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: '1' } });
+    expect(jwtService.sign).toHaveBeenCalledWith(
+      { id: user.id, email: user.email },
+      { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
+    );
+    expect(mockUserRepository.save).toHaveBeenCalledWith({ ...user, JWTRefreshToken: newToken });
+    expect(result).toBe(newToken);
+  });
+
+  it('should throw an error if user not found when generating refresh token', async () => {
+    mockUserRepository.findOne.mockResolvedValue(null);
+
+    await expect(service.generateNewRefreshToken('nonexistent')).rejects.toThrow('User not found');
+    expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: 'nonexistent' } });
+  });
+
+  it('should throw and log error if jwtService.sign fails', async () => {
+    const user: UserEntity = {
+      id: '2',
+      email: 'fail@test.com',
+      JWTRefreshToken: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as UserEntity;
+
+    mockUserRepository.findOne.mockResolvedValue(user);
+    mockJwtService.sign.mockImplementation(() => {
+      throw new Error('JWT error');
+    });
+
+    const loggerSpy = jest.spyOn(Logger.prototype, 'error');
+
+    await expect(service.generateNewRefreshToken('2')).rejects.toThrow('JWT error');
+    expect(loggerSpy).toHaveBeenCalled();
   });
 });
