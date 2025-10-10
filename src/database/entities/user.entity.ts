@@ -8,20 +8,26 @@ import {
 
 @Entity('users')
 export class UserEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column({ length: 100 })
-  name: string;
+  firstName: string;
+
+  @Column({ length: 100, nullable: true })
+  lastName: string;
 
   @Column({ unique: true })
   email: string;
 
   @Column({ nullable: true })
-  password: string;
+  picture: string;
 
-  @Column({ type: 'enum', enum: ['LOCAL', 'GOOGLE'], default: 'LOCAL' })
-  authProvider: 'LOCAL' | 'GOOGLE';
+  @Column({ nullable: true })
+  googleRefreshToken?: string;
+
+  @Column({ nullable: true })
+  JWTRefreshToken?: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

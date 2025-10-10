@@ -1,45 +1,29 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
-import { UserEntity } from '../../../database/entities/user.entity';
-import { RegisterDto } from './dtos/Register.dto';
+import { Logger } from '@nestjs/common';
+import { UsersDBService } from 'src/database/dbservices/users.dbservice';
+import { UserEntity } from 'src/database/entities/user.entity';
+
+interface GoogleUserPayload {
+  email: string;
+  firstName: string;
+  lastName: string;
+  picture: string;
+  refreshToken: string;
+}
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
+    private readonly userDbService: UsersDBService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<UserEntity | null> {
-    const user = await this.usersService.findByEmail(email);
-    if (!user) return null;
-
-    const passwordMatches = await bcrypt.compare(password, user.password);
-    if (!passwordMatches) return null;
-
-    return user;
-  }
-
-  async login(user: UserEntity) {
-    const payload = { email: user.email, sub: user.id };
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
-  }
-
-  async validateOAuthLogin(profile: any): Promise<string> {
-    const payload = {
-      email: profile.emails[0].value,
-      name: profile.displayName,
-      provider: profile.provider,
-    };
-
-    return this.jwtService.sign(payload);
-  }
-
-  async validateGoogleUser(googleUser: any) {
+  async validateGoogleUser(googleUser: GoogleUserPayload): Promise<UserEntity> {
     const user = await this.usersService.findByEmail(googleUser.email);
     if (!user) {
       throw new UnauthorizedException('Usuario no registrado con Google');
@@ -47,50 +31,96 @@ export class AuthService {
     return user;
   }
 
-  async registerWithEmail(registerDto: RegisterDto) {
-    const { email, password, name } = registerDto;
+  async loginOrCreateGoogleUser(
+    email: string,
+    firstName: string,
+    lastName: string,
+    picture: string,
+    googleRefreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    try {
+      let user = await this.usersService.findByEmail(email);
 
-    let user = await this.usersService.findByEmail(email);
-    if (user) {
-      throw new Error('El correo ya está registrado');
+      if (!user) {
+        this.logger.log(`Creating new user with email: ${email}`);
+        user = await this.usersService.createUser({
+          email,
+          firstName,
+          lastName,
+          picture,
+          googleRefreshToken,
+        });
+
+        const accessToken = this.jwtService.sign(
+          { id: user.id, email: user.email },
+          { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
+        );
+
+        const refreshToken = this.jwtService.sign(
+          { id: user.id, email: user.email },
+          { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
+        );
+
+        user.JWTRefreshToken = refreshToken;
+        await this.userDbService.repository.save(user);
+
+        return { accessToken, refreshToken };
+      } else {
+        this.logger.log(`Found existing user with email: ${email}`);
+
+        const accessToken = this.jwtService.sign(
+          { id: user.id, email: user.email },
+          { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
+        );
+
+        const refreshToken = await this.usersService.generateNewRefreshToken(user.id);
+
+        return { accessToken, refreshToken };
+      }
+    } catch (err) {
+      this.logger.error(
+        `Error in loginOrCreateGoogleUser: ${(err as Error).message}`,
+        (err as Error).stack,
+      );
+      throw err;
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    user = await this.usersService.createUser({
-      email,
-      name,
-      password: hashedPassword,
-      authProvider: 'LOCAL',
-    });
-
-    return user;
   }
 
-  async registerGoogleUser(googleUser: any) {
-    let user = await this.usersService.findByEmail(googleUser.email);
-    const name = googleUser.displayName || googleUser.emails[0].value.split('@')[0];
-    console.log('Google User:', googleUser);
-    if (!user) {
-      user = await this.usersService.createUser({
-        email: googleUser.email,
-        name: name,
-        authProvider: 'GOOGLE',
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken?: string }> {
+    try {
+      const payload = this.jwtService.verify<{ id: string; email: string }>(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET,
       });
-    }
-    return user;
-  }
 
-  async findOrCreateGoogleUser(googleUser: any) {
-    let user = await this.usersService.findByEmail(googleUser.email);
-    if (!user) {
-      user = await this.usersService.createUser({
-        email: googleUser.email,
-        name: googleUser.firstName + ' ' + googleUser.lastName,
-        authProvider: 'GOOGLE',
-      });
-    }
+      if (!payload?.id) {
+        throw new UnauthorizedException('Refresh token inválido');
+      }
 
-    return user;
+      const user = await this.userDbService.findById(payload.id);
+      if (!user || user.JWTRefreshToken !== refreshToken) {
+        throw new UnauthorizedException('Refresh token inválido o expirado');
+      }
+
+      const newAccessToken = this.jwtService.sign(
+        { id: user.id, email: user.email },
+        { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
+      );
+
+      const newRefreshToken = this.jwtService.sign(
+        { id: user.id, email: user.email },
+        { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
+      );
+
+      user.JWTRefreshToken = newRefreshToken;
+      await this.userDbService.repository.save(user);
+
+      return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+    } catch (err) {
+      const error = err as Error;
+      this.logger.error(`Error refreshing token: ${error.message}`, error.stack);
+      throw new UnauthorizedException('No se pudo refrescar el token');
+    }
   }
 }

@@ -1,85 +1,112 @@
-import { Controller, Get, UseGuards, Req, Post, Body, Res } from '@nestjs/common';
-import express from 'express';
+import { Controller, Get, UseGuards, Req, Res } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dtos/Login.dto';
-import { RegisterDto } from './dtos/Register.dto';
-import { JwtService } from '@nestjs/jwt';
+import type { Request, Response } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guar';
+
+interface RequestWithCookies extends Request {
+  cookies: { [key: string]: string };
+}
+
+export interface RequestWithUser extends Request {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    picture: string;
+    roles?: string[];
+  };
+}
+
+interface GoogleUserPayload {
+  email: string;
+  firstName: string;
+  lastName: string;
+  picture: string;
+  refreshToken: string;
+}
 
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly jwtService: JwtService,
-  ) {}
-
-  // --- LOGIN ---
-  @Post('login')
-  async login(@Body() loginDto: LoginDto, @Res() res: express.Response) {
-    const user = await this.authService.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
-    }
-
-    const token = this.jwtService.sign({ id: user.id, email: user.email });
-
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 días
-    });
-
-    return res.json({ message: 'Login exitoso', user: { id: user.id, email: user.email } });
-  }
-
-  // --- REGISTER ---
-  @Post('register')
-  async register(@Body() registerDto: RegisterDto, @Res() res: express.Response) {
-    const user = await this.authService.registerWithEmail(registerDto);
-
-    const token = this.jwtService.sign({ id: user.id, email: user.email });
-
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    });
-
-    return res.json({ message: 'Registro exitoso', user: { id: user.id, email: user.email } });
-  }
+  constructor(private readonly authService: AuthService) {}
 
   // --- GOOGLE AUTH ---
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req) {}
+  googleAuth() {
+    // no necesitamos req aquí
+  }
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req: express.Request, @Res() res: express.Response) {
-    const user = req.user;
-    if (!user) {
-      return res.status(400).send('No se pudo autenticar');
+  async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+    const googleUser = req.user as GoogleUserPayload;
+
+    if (!googleUser) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_auth_failed`);
     }
 
-    const token = this.jwtService.sign(user as object);
+    const { accessToken, refreshToken } = await this.authService.loginOrCreateGoogleUser(
+      googleUser.email,
+      googleUser.firstName,
+      googleUser.lastName,
+      googleUser.picture,
+      googleUser.refreshToken,
+    );
 
-    res.cookie('auth_token', token, {
+    res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      sameSite: 'strict',
+    });
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
     });
 
-    return res.redirect(`https://localhost:5173/dashboard`);
+    return res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
   }
 
-  // --- PROFILE ---
-  @Get('profile')
+  @Get('refresh-token')
+  async refreshToken(@Req() req: RequestWithCookies, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'No se encontró refresh token' });
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      await this.authService.refreshAccessToken(refreshToken);
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    });
+
+    if (newRefreshToken) {
+      res.cookie('refreshToken', newRefreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+      });
+    }
+
+    return { accessToken };
+  }
+
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Req() req) {
-    return req.user;
+  @Get('profile')
+  getProfile(@Req() req: RequestWithUser) {
+    // Quitamos async porque no usamos await
+    return {
+      id: req.user.id,
+      email: req.user.email,
+      firstName: req.user.firstName,
+      lastName: req.user.lastName,
+      picture: req.user.picture,
+      roles: req.user.roles,
+    };
   }
 }

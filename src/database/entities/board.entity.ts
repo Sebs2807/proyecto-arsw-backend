@@ -12,8 +12,8 @@ import { UserEntity } from './user.entity';
 
 @Entity('boards')
 export class BoardEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column({ length: 100 })
   title: string;

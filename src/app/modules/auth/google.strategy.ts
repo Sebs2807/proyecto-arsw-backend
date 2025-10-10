@@ -1,32 +1,49 @@
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Strategy, VerifyCallback, Profile } from 'passport-google-oauth20';
+
+interface GoogleUser {
+  email: string;
+  firstName: string;
+  lastName: string;
+  picture: string;
+  accessToken: string;
+  refreshToken: string;
+}
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor() {
+    console.log(process.env.BACKEND_URL + '/v1/auth/google/callback');
     super({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: 'https://localhost:3000/v1/auth/google/callback',
-      scope: ['email', 'profile'],
-    } as any);
+      callbackURL: process.env.BACKEND_URL + '/v1/auth/google/callback',
+      scope: ['email', 'profile', 'https://www.googleapis.com/auth/calendar'], // eliminado la coma extra
+      accessType: 'offline',
+      prompt: 'consent',
+    });
   }
 
-  async validate(
+  validate(
     accessToken: string,
     refreshToken: string,
-    profile: any,
+    profile: Profile,
     done: VerifyCallback,
-  ): Promise<any> {
-    const { name, emails, photos } = profile;
-    const user = {
-      email: emails[0].value,
-      firstName: name.givenName,
-      lastName: name.familyName,
-      picture: photos[0].value,
+  ): void {
+    const emails = profile.emails ?? [];
+    const photos = profile.photos ?? [];
+    const name = profile.name ?? { givenName: '', familyName: '' };
+
+    const user: GoogleUser = {
+      email: emails[0]?.value ?? '',
+      firstName: name.givenName ?? '',
+      lastName: name.familyName ?? '',
+      picture: photos[0]?.value ?? '',
       accessToken,
+      refreshToken,
     };
+
     done(null, user);
   }
 }

@@ -7,14 +7,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const httpsOptions = {
-    key: fs.readFileSync('./certs/synapse+1-key.pem'),
-    cert: fs.readFileSync('./certs/synapse+1.pem'),
+    key: fs.readFileSync('./certs/synapse+1-key.pem') as Buffer,
+    cert: fs.readFileSync('./certs/synapse+1.pem') as Buffer,
   };
 
   const app = await NestFactory.create(AppModule, { httpsOptions });
   app.use(cookieParser());
 
-  // Swagger setup
   const config = new DocumentBuilder()
     .setTitle('Synapse API')
     .setDescription('API documentation')
@@ -29,10 +28,10 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: 'https://localhost:5173',
+    origin: process.env.FRONTEND_URL,
     credentials: true,
   });
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();
