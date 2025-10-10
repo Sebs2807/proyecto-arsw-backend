@@ -91,7 +91,7 @@ describe('AuthController', () => {
     const result = await controller.refreshToken(req, res as any);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ message: 'No refresh token found' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'No se encontró refresh token' });
     expect(result).toBeUndefined();
   });
 

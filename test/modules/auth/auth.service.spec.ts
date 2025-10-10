@@ -149,9 +149,14 @@ describe('AuthService', () => {
       updatedAt: new Date(),
     };
 
+    // Mockeamos verify para que devuelva un payload válido
     mockJwtService.verify.mockReturnValue({ id: 'adasdasdasda', email: 'test@example.com' });
+    // Mockeamos la búsqueda del usuario
     mockUserDbService.findById.mockResolvedValue(mockUser);
-    mockJwtService.sign.mockReturnValueOnce('newAccess').mockReturnValueOnce('newRefresh');
+    // Mockeamos la generación de nuevos tokens
+    mockJwtService.sign
+      .mockReturnValueOnce('newAccess') // access token
+      .mockReturnValueOnce('newRefresh'); // refresh token
 
     const result = await service.refreshAccessToken('validToken');
 
@@ -159,11 +164,11 @@ describe('AuthService', () => {
     expect(result).toEqual({ accessToken: 'newAccess', refreshToken: 'newRefresh' });
   });
 
-  it('should throw if refresh token is invalid', async () => {
+  it('should throw UnauthorizedException if refresh token is invalid', async () => {
     mockJwtService.verify.mockImplementation(() => {
       throw new Error('Invalid token');
     });
 
-    await expect(service.refreshAccessToken('invalid')).rejects.toThrow(UnauthorizedException);
+    await expect(service.refreshAccessToken('invalidToken')).rejects.toThrow(UnauthorizedException);
   });
 });
