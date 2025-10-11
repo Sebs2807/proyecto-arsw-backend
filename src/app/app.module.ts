@@ -5,6 +5,8 @@ import { AuthModule } from '../app/modules/auth/auth.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { UserEntity } from 'src/database/entities/user.entity';
 import { BoardEntity } from 'src/database/entities/board.entity';
+import { ListEntity } from 'src/database/entities/list.entity';
+import { CardEntity } from 'src/database/entities/card.entity';
 import { UsersModule } from './modules/users/users.module';
 import { BoardsModule } from './modules/boards/boards.module';
 import { join } from 'path';
@@ -26,7 +28,7 @@ import { readFileSync } from 'fs';
         username: config.get('DB_USER'),
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
-        entities: [UserEntity, BoardEntity],
+        entities: [UserEntity, BoardEntity, ListEntity, CardEntity],
         synchronize: true,
         logging: false,
         ssl:
