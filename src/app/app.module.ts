@@ -11,7 +11,8 @@ import { UsersModule } from './modules/users/users.module';
 import { BoardsModule } from './modules/boards/boards.module';
 import { join } from 'path';
 import { readFileSync } from 'fs';
-
+import { ListsModule } from './modules/lists/lists.module';
+import { CardModule } from './modules/cards/cards.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -44,6 +45,8 @@ import { readFileSync } from 'fs';
     AuthModule,
     UsersModule,
     BoardsModule,
+    ListsModule,
+    CardModule
   ],
 })
 export class AppModule {}

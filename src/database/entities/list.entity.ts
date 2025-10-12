@@ -24,8 +24,11 @@ export class ListEntity {
   @Column({ type: 'int', default: 0 })
   order: number;
   
-  @ManyToOne(() => BoardEntity, (board) => board.id, { onDelete: 'CASCADE' })
-  board: BoardEntity;
+  /**
+   * @ManyToOne(() => BoardEntity, (board) => board.id, { onDelete: 'CASCADE' })
+    board: BoardEntity;
+   */
+  
 
   @OneToMany(() => CardEntity, (card) => card.list, { cascade: true })
   cards: CardEntity[];
