@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { UserWorkspaceEntity } from 'src/database/entities/userworkspace.entity';
 
 interface RequestWithCookies extends Request {
   cookies: { [key: string]: string };
@@ -12,10 +13,6 @@ export interface RequestWithUser extends Request {
   user: {
     id: string;
     email: string;
-    firstName: string;
-    lastName: string;
-    picture: string;
-    roles?: string[];
   };
 }
 
@@ -34,9 +31,7 @@ export class AuthController {
   // --- GOOGLE AUTH ---
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  googleAuth() {
-    // no necesitamos req aquí
-  }
+  googleAuth() {}
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
@@ -66,7 +61,7 @@ export class AuthController {
       sameSite: 'strict',
     });
 
-    return res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+    return res.redirect(`${process.env.FRONTEND_URL}/`);
   }
 
   @Get('refresh-token')
@@ -99,14 +94,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Req() req: RequestWithUser) {
-    // Quitamos async porque no usamos await
     return {
       id: req.user.id,
       email: req.user.email,
-      firstName: req.user.firstName,
-      lastName: req.user.lastName,
-      picture: req.user.picture,
-      roles: req.user.roles,
     };
   }
 }

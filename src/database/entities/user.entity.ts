@@ -4,17 +4,19 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { UserWorkspaceEntity } from './userworkspace.entity';
 
 @Entity('users')
 export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 100 })
+  @Column()
   firstName: string;
 
-  @Column({ length: 100, nullable: true })
+  @Column()
   lastName: string;
 
   @Column({ unique: true })
@@ -23,11 +25,14 @@ export class UserEntity {
   @Column({ nullable: true })
   picture: string;
 
-  @Column({ nullable: true })
+  @Column()
   googleRefreshToken?: string;
 
   @Column({ nullable: true })
   JWTRefreshToken?: string;
+
+  @OneToMany(() => UserWorkspaceEntity, (userWorkspace) => userWorkspace.user)
+  workspaces: UserWorkspaceEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

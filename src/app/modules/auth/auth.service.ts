@@ -4,6 +4,9 @@ import { UsersService } from '../users/users.service';
 import { Logger } from '@nestjs/common';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { UserEntity } from 'src/database/entities/user.entity';
+import { WorkspacesService } from '../workspaces/workspaces.service';
+import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
+import { Role } from 'src/database/entities/userworkspace.entity';
 
 interface GoogleUserPayload {
   email: string;
@@ -21,6 +24,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
     private readonly userDbService: UsersDBService,
+    private readonly workspacesService: WorkspacesService,
+    private readonly usersWorkspacesService: UsersWorkspacesService,
   ) {}
 
   async validateGoogleUser(googleUser: GoogleUserPayload): Promise<UserEntity> {
@@ -41,8 +46,11 @@ export class AuthService {
     try {
       let user = await this.usersService.findByEmail(email);
 
+      console.log('refesh token in loginOrCreateGoogleUser:', googleRefreshToken);
+
       if (!user) {
         this.logger.log(`Creating new user with email: ${email}`);
+
         user = await this.usersService.createUser({
           email,
           firstName,
@@ -50,6 +58,16 @@ export class AuthService {
           picture,
           googleRefreshToken,
         });
+
+        const firstWorkspace = await this.workspacesService.createWorkspace(
+          firstName + "'s Workspace",
+        );
+
+        await this.usersWorkspacesService.addUserToWorkspace(
+          user.id,
+          firstWorkspace.id,
+          Role.SUPER_ADMIN,
+        );
 
         const accessToken = this.jwtService.sign(
           { id: user.id, email: user.email },

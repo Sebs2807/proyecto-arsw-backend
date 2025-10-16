@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
+import { use } from 'passport';
 
 @Entity('boards')
 export class BoardEntity {
@@ -21,7 +22,7 @@ export class BoardEntity {
   @Column({ nullable: true })
   description: string;
 
-  @ManyToOne(() => UserEntity, (user) => user.id, { eager: true })
+  @ManyToOne(() => UserEntity, (user) => user.id)
   createdBy: UserEntity;
 
   @ManyToMany(() => UserEntity, { eager: true })

@@ -2,11 +2,7 @@ import { Body, Controller, Get, Post, Param, Patch, Delete, UseGuards, Req } fro
 import { BoardsService } from './boards.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { UserEntity } from '../../../database/entities/user.entity';
-import type { Request } from 'express';
-
-interface RequestWithUser extends Request {
-  user: UserEntity;
-}
+import type { RequestWithUser } from '../auth/auth.controller';
 
 interface CreateBoardDto {
   title: string;
@@ -28,7 +24,12 @@ export class BoardsController {
   @Post()
   async create(@Body() body: CreateBoardDto, @Req() req: RequestWithUser) {
     const user = req.user;
-    return this.boardsService.createBoard(body.title, body.description, user, body.members || []);
+    return this.boardsService.createBoard(
+      body.title,
+      body.description,
+      user.id,
+      body.members || [],
+    );
   }
 
   @Get()

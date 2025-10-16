@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { join } from 'path';
+import { readFileSync } from 'fs';
+
 import { AuthModule } from '../app/modules/auth/auth.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { UserEntity } from 'src/database/entities/user.entity';
@@ -9,10 +12,13 @@ import { ListEntity } from 'src/database/entities/list.entity';
 import { CardEntity } from 'src/database/entities/card.entity';
 import { UsersModule } from './modules/users/users.module';
 import { BoardsModule } from './modules/boards/boards.module';
-import { join } from 'path';
-import { readFileSync } from 'fs';
 import { ListsModule } from './modules/lists/lists.module';
 import { CardModule } from './modules/cards/cards.module';
+import { UserWorkspaceEntity } from 'src/database/entities/userworkspace.entity';
+import { WorkspaceEntity } from 'src/database/entities/workspace.entity';
+import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspaces.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,7 +35,14 @@ import { CardModule } from './modules/cards/cards.module';
         username: config.get('DB_USER'),
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
-        entities: [UserEntity, BoardEntity, ListEntity, CardEntity],
+        entities: [
+          UserEntity,
+          UserWorkspaceEntity,
+          WorkspaceEntity,
+          BoardEntity,
+          ListEntity,
+          CardEntity,
+        ],
         synchronize: true,
         logging: false,
         ssl:
@@ -46,7 +59,9 @@ import { CardModule } from './modules/cards/cards.module';
     UsersModule,
     BoardsModule,
     ListsModule,
-    CardModule
+    CardModule,
+    WorkspacesModule,
+    UsersWorkspacesModule,
   ],
 })
 export class AppModule {}

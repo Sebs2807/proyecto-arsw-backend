@@ -1,4 +1,4 @@
-import { Injectable, Logger} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { UserEntity } from '../../../database/entities/user.entity';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { JwtService } from '@nestjs/jwt';
