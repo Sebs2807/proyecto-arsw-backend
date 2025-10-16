@@ -14,17 +14,17 @@ export class BoardsService {
   async createBoard(
     title: string,
     description: string | undefined,
-    creator: UserEntity,
+    creatorId: string,
     members: UserEntity[],
   ): Promise<BoardEntity> {
-    if (!creator || !('roles' in creator) || creator['roles'] !== 'ADMIN') {
-      throw new ForbiddenException('Solo un ADMIN puede crear tableros');
-    }
+    // if (!creator || !('roles' in creator) || creator['roles'] !== 'ADMIN') {
+    //   throw new ForbiddenException('Solo un ADMIN puede crear tableros');
+    // }
 
     const board = this.boardsRepository.create({
       title,
       description,
-      createdBy: creator,
+      createdBy: { id: creatorId },
       members,
     });
 

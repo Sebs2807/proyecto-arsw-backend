@@ -3,7 +3,10 @@ import { AppModule } from './app/app.module';
 import { VersioningType } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import * as fs from 'fs';
+import 'reflect-metadata';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ResponseInterceptor } from './app/common/interceptors/response.interceptor';
+import { AllExceptionsFilter } from './app/common/filters/http-interceptor.filter';
 
 async function bootstrap() {
   const httpsOptions = {
@@ -31,6 +34,12 @@ async function bootstrap() {
     origin: process.env.FRONTEND_URL,
     credentials: true,
   });
+
+  // Interceptor global para respuestas
+  app.useGlobalInterceptors(new ResponseInterceptor());
+
+  // Filtro global para errores
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   //await app.listen(process.env.PORT ?? 3000);
   await app.listen(3000);

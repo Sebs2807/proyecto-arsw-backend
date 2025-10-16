@@ -6,6 +6,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { GoogleStrategy } from './google.strategy';
 import { JwtStrategy } from './jwt.strategy';
 import { UsersModule } from '../users/users.module';
+import { WorkspacesService } from '../workspaces/workspaces.service';
+import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
+import { UsersWorkspacesModule } from '../users-workspaces/usersworkspaces.module';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -14,7 +18,9 @@ import { UsersModule } from '../users/users.module';
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1h' },
     }),
-    UsersModule, // <- aquí importa el módulo
+    UsersModule,
+    UsersWorkspacesModule,
+    WorkspacesModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, GoogleStrategy, JwtStrategy],

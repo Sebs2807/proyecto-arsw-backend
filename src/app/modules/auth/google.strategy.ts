@@ -1,6 +1,6 @@
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
-import { Strategy, VerifyCallback, Profile } from 'passport-google-oauth20';
+import { Strategy, Profile, VerifyCallback } from 'passport-google-oauth20';
 
 interface GoogleUser {
   email: string;
@@ -14,15 +14,19 @@ interface GoogleUser {
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor() {
-    console.log(process.env.BACKEND_URL + '/v1/auth/google/callback');
     super({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.BACKEND_URL + '/v1/auth/google/callback',
-      scope: ['email', 'profile', 'https://www.googleapis.com/auth/calendar'], // eliminado la coma extra
-      accessType: 'offline',
-      prompt: 'consent',
+      callbackURL: `${process.env.BACKEND_URL}/v1/auth/google/callback`,
+      scope: ['email', 'profile', 'https://www.googleapis.com/auth/calendar'],
     });
+  }
+
+  authorizationParams(): Record<string, string> {
+    return {
+      access_type: 'offline',
+      prompt: 'consent',
+    };
   }
 
   validate(
@@ -43,6 +47,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       accessToken,
       refreshToken,
     };
+
+    console.log('REFRESH TOKEN =>', refreshToken);
 
     done(null, user);
   }
