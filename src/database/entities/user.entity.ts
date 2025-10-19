@@ -25,7 +25,7 @@ export class UserEntity {
   @Column({ nullable: true })
   picture: string;
 
-  @Column()
+  @Column({ nullable: true })
   googleRefreshToken?: string;
 
   @Column({ nullable: true })
