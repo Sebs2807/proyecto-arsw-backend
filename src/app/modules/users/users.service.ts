@@ -3,6 +3,8 @@ import { UserEntity } from '../../../database/entities/user.entity';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { JwtService } from '@nestjs/jwt';
 import { FindManyOptions, Like } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {
@@ -11,6 +13,8 @@ export class UsersService {
   constructor(
     private readonly usersDbService: UsersDBService,
     private readonly jwtService: JwtService,
+    @InjectRepository(UserEntity)
+    private usersRepository: Repository<UserEntity>,
   ) {}
 
   // Devuelve solo los campos públicos de un usuario
@@ -121,5 +125,10 @@ export class UsersService {
       this.logger.error(`Error generating refresh token: ${error.message}`, error.stack);
       throw new Error('Failed to generate new refresh token');
     }
+  }
+
+  async create(data: Partial<UserEntity>) {
+    const user = this.usersRepository.create(data);
+    return this.usersRepository.save(user);
   }
 }

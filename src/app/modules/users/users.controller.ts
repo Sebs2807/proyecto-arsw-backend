@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 
 @Controller({ path: 'users', version: '1' })
@@ -20,5 +20,10 @@ export class UsersController {
   @Get()
   async findAll() {
     return this.usersService.findAll();
+  }
+
+  @Post()
+  async create(@Body() body: any) {
+    return this.usersService.create(body);
   }
 }
