@@ -131,4 +131,21 @@ export class UsersService {
     const user = this.usersRepository.create(data);
     return this.usersRepository.save(user);
   }
+
+  // Update user basic info
+  async updateUser(id: string, data: Partial<UserEntity>) {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) throw new Error('User not found');
+
+    Object.assign(user, data);
+    const updatedUser = await this.usersRepository.save(user);
+    return this.sanitizeUser(updatedUser);
+  }
+
+  // Delete user by id
+  async deleteUser(id: string) {
+    const result = await this.usersRepository.delete(id);
+    if (result.affected === 0) throw new Error('User not found');
+    return { message: 'User deleted successfully' };
+  }
 }
