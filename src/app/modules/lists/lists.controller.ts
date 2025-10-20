@@ -7,12 +7,15 @@ import { ListEntity } from '../../../database/entities/list.entity';
 export class ListController {
   constructor(private readonly listService: ListService) {}
 
+  @Get()
+  findAll(): Promise<ListEntity[]> {
+    return this.listService.findAll();
+  }
 
   @Get(':id')
   findOne(@Param('id') id: string): Promise<ListEntity | null> {
     return this.listService.findOne(id);
   }
-
 
   @Post()
   create(@Body() listData: Partial<ListEntity>): Promise<ListEntity> {
@@ -20,10 +23,12 @@ export class ListController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() listData: Partial<ListEntity>): Promise<ListEntity | null> {
+  update(
+    @Param('id') id: string,
+    @Body() listData: Partial<ListEntity>,
+  ): Promise<ListEntity | null> {
     return this.listService.update(id, listData);
   }
-
 
   @Delete(':id')
   remove(@Param('id') id: string): Promise<void> {
