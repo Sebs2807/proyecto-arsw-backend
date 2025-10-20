@@ -33,8 +33,25 @@ export class CardService {
   }
 
   async update(id: string, cardData: Partial<CardEntity>): Promise<CardEntity> {
-    await this.cardRepository.update(id, cardData);
-    return this.findOne(id);
+    const card = await this.cardRepository.findOne({
+      where: { id },
+      relations: ['list'],
+    });
+
+    if (!card) throw new NotFoundException(`Card with id ${id} not found`);
+
+    if ((cardData as any).listId) {
+      const newList = await this.listRepository.findOne({
+        where: { id: (cardData as any).listId },
+      });
+      if (!newList)
+        throw new NotFoundException(`List with id ${(cardData as any).listId} not found`);
+      card.list = newList;
+    }
+
+    Object.assign(card, cardData);
+
+    return this.cardRepository.save(card);
   }
 
   async delete(id: string): Promise<void> {
