@@ -39,7 +39,7 @@ jobs:
       - name: Build project
         run: npm run build --if-present
 
-      - name: 🧪 Run tests and generate coverage
+      - name: Run tests and generate coverage
         run: npm run test:cov --if-present
 
       - name: SonarCloud Scan
