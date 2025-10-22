@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para que SonarCloud vea todo el historial
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -39,22 +39,39 @@ jobs:
       - name: Build project
         run: npm run build --if-present
 
-      - name: Run tests and generate coverage
-        run: |
-          npm run test:cov --if-present || npm test --if-present
+      - name: 🧪 Run tests and generate coverage
+        run: npm run test:cov --if-present
 
       - name: SonarCloud Scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          npx sonar-scanner \
-            -Dsonar.projectKey=Sebs2807_proyecto-arsw \
-            -Dsonar.organization=sebs2807 \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.sources=src \
-            -Dsonar.tests=src \
-            -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-            -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
-            -Dsonar.verbose=true
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Running SonarCloud PR analysis for #${{ github.event.pull_request.number }}"
+            npx sonar-scanner \
+              -Dsonar.projectKey=Sebs2807_proyecto-arsw \
+              -Dsonar.organization=sebs2807 \
+              -Dsonar.host.url=https://sonarcloud.io \
+              -Dsonar.sources=src \
+              -Dsonar.tests=src \
+              -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
+              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+              -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
+              -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
+              -Dsonar.pullrequest.branch=${{ github.head_ref }} \
+              -Dsonar.pullrequest.base=${{ github.base_ref }} \
+              -Dsonar.verbose=true
+          else
+            echo "Running SonarCloud branch analysis"
+            npx sonar-scanner \
+              -Dsonar.projectKey=Sebs2807_proyecto-arsw \
+              -Dsonar.organization=sebs2807 \
+              -Dsonar.host.url=https://sonarcloud.io \
+              -Dsonar.sources=src \
+              -Dsonar.tests=src \
+              -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
+              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+              -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
+              -Dsonar.verbose=true
+          fi
