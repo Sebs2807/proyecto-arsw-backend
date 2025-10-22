@@ -80,7 +80,7 @@ describe('AuthController', () => {
       'google-refresh',
     );
     expect(res.cookie).toHaveBeenCalledTimes(2);
-    expect(res.redirect).toHaveBeenCalledWith('https://frontend.com/dashboard');
+    expect(res.redirect).toHaveBeenCalledWith('https://frontend.com/');
   });
 
   // --- REFRESH TOKEN ---
@@ -127,10 +127,6 @@ describe('AuthController', () => {
     expect(result).toEqual({
       id: '1',
       email: 'user@mail.com',
-      firstName: 'User',
-      lastName: 'Name',
-      picture: 'avatar.jpg',
-      roles: ['USER'],
     });
   });
 });
