@@ -36,13 +36,13 @@ describe('BoardsController', () => {
 
   const mockUser: UserEntity = {
     id: '1',
+    firstName: 'Test',
+    lastName: 'User',
     email: 'test@mail.com',
-    password: 'hashed',
-    name: 'Tester',
-    authProvider: 'LOCAL',
+    picture: '',
+    workspaces: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-    boards: [],
   } as unknown as UserEntity;
 
   const mockBoard: BoardEntity = {
@@ -55,13 +55,10 @@ describe('BoardsController', () => {
     updatedAt: new Date(),
   };
 
-  // --- CREATE ---
   it('should create a board', async () => {
     jest.spyOn(boardsService, 'createBoard').mockResolvedValue(mockBoard);
 
-    const mockRequest = {
-      user: mockUser,
-    } as unknown as Request & { user: UserEntity };
+    const mockRequest = { user: mockUser } as Request & { user: UserEntity };
 
     const result = await controller.create(
       { title: 'Test Board', description: 'Test Description', members: [] },
@@ -71,46 +68,34 @@ describe('BoardsController', () => {
     expect(boardsService.createBoard).toHaveBeenCalledWith(
       'Test Board',
       'Test Description',
-      mockUser,
+      mockUser.id,
       [],
     );
     expect(result).toEqual(mockBoard);
   });
 
-  // --- FIND ALL ---
   it('should return all boards', async () => {
     jest.spyOn(boardsService, 'findAll').mockResolvedValue([mockBoard]);
-
     const result = await controller.findAll();
     expect(result).toEqual([mockBoard]);
   });
 
-  // --- FIND ONE ---
-  it('should return a board by id', async () => {
+  it('should return one board by id', async () => {
     jest.spyOn(boardsService, 'findOne').mockResolvedValue(mockBoard);
-
     const result = await controller.findOne('1');
     expect(result).toEqual(mockBoard);
   });
 
-  // --- UPDATE ---
   it('should update a board', async () => {
-    const updatedBoard: BoardEntity = {
-      ...mockBoard,
-      title: 'Updated Board',
-      updatedAt: new Date(),
-    };
+    const updated = { ...mockBoard, title: 'Updated' };
+    jest.spyOn(boardsService, 'updateBoard').mockResolvedValue(updated);
 
-    jest.spyOn(boardsService, 'updateBoard').mockResolvedValue(updatedBoard);
-
-    const result = await controller.update('1', { title: 'Updated Board' });
-    expect(result).toEqual(updatedBoard);
+    const result = await controller.update('1', { title: 'Updated' });
+    expect(result).toEqual(updated);
   });
 
-  // --- DELETE ---
   it('should delete a board', async () => {
     jest.spyOn(boardsService, 'deleteBoard').mockResolvedValue({ deleted: true });
-
     const result = await controller.remove('1');
     expect(result).toEqual({ deleted: true });
   });

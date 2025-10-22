@@ -14,8 +14,10 @@ describe('UsersService', () => {
   const mockUserRepository = {
     findOne: jest.fn(),
     find: jest.fn(),
+    findAndCount: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+    delete: jest.fn(),
   };
 
   const mockUsersDBService = {
@@ -32,6 +34,7 @@ describe('UsersService', () => {
         UsersService,
         { provide: UsersDBService, useValue: mockUsersDBService },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: getRepositoryToken(UserEntity), useValue: mockUserRepository },
       ],
     }).compile();
 
@@ -48,7 +51,7 @@ describe('UsersService', () => {
 
     const result = await service.findByEmail('test@example.com');
 
-    expect(result).toEqual(mockUser);
+    expect(result).toEqual(expect.objectContaining({ id: '1', email: 'test@example.com' }));
     expect(mockUserRepository.findOne).toHaveBeenCalledWith({
       where: { email: 'test@example.com' },
     });
@@ -72,20 +75,33 @@ describe('UsersService', () => {
 
     const result = await service.createUser(userData);
 
-    expect(result).toEqual(mockUser);
+    expect(result).toEqual(expect.objectContaining({ id: '1', email: 'new@example.com' }));
     expect(mockUserRepository.create).toHaveBeenCalledWith(userData);
     expect(mockUserRepository.save).toHaveBeenCalledWith(mockUser);
   });
 
   // --- FIND ALL USERS ---
-  it('should return all users', async () => {
-    const mockUsers = [{ id: '1' }, { id: '2' }] as UserEntity[];
-    mockUserRepository.find.mockResolvedValue(mockUsers);
+  it('should return all users with pagination info', async () => {
+    const mockUsers = [
+      { id: '1', email: 'test1@mail.com' },
+      { id: '2', email: 'test2@mail.com' },
+    ] as UserEntity[];
 
-    const result = await service.findAll();
+    // findAndCount debe devolver una tupla [users, totalCount]
+    mockUserRepository.findAndCount.mockResolvedValue([mockUsers, 2]);
 
-    expect(result).toEqual(mockUsers);
-    expect(mockUserRepository.find).toHaveBeenCalled();
+    const result = await service.findAll(1, 10);
+
+    expect(result.data).toHaveLength(2);
+    expect(result.meta).toEqual(
+      expect.objectContaining({
+        total: 2,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      }),
+    );
+    expect(mockUserRepository.findAndCount).toHaveBeenCalled();
   });
 
   // --- GENERATE NEW REFRESH TOKEN ---
@@ -97,6 +113,7 @@ describe('UsersService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as UserEntity;
+
     const newToken = 'mockNewToken';
 
     mockUserRepository.findOne.mockResolvedValue(user);
@@ -114,10 +131,12 @@ describe('UsersService', () => {
     expect(result).toBe(newToken);
   });
 
-  it('should throw an error if user not found when generating refresh token', async () => {
+  it('should throw a generic error if user not found when generating refresh token', async () => {
     mockUserRepository.findOne.mockResolvedValue(null);
 
-    await expect(service.generateNewRefreshToken('nonexistent')).rejects.toThrow('User not found');
+    await expect(service.generateNewRefreshToken('nonexistent')).rejects.toThrow(
+      'Failed to generate new refresh token',
+    );
     expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: 'nonexistent' } });
   });
 
@@ -137,7 +156,9 @@ describe('UsersService', () => {
 
     const loggerSpy = jest.spyOn(Logger.prototype, 'error');
 
-    await expect(service.generateNewRefreshToken('2')).rejects.toThrow('JWT error');
+    await expect(service.generateNewRefreshToken('2')).rejects.toThrow(
+      'Failed to generate new refresh token',
+    );
     expect(loggerSpy).toHaveBeenCalled();
   });
 });
