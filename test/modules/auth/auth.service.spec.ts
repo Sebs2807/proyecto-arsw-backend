@@ -32,8 +32,13 @@ describe('AuthService', () => {
     findById: jest.fn(),
   };
 
-  const mockWorkspacesService = {};
-  const mockUsersWorkspacesService = {};
+  const mockWorkspacesService = {
+    createWorkspace: jest.fn().mockResolvedValue({ id: 'ws1', name: "User's Workspace" }),
+  };
+
+  const mockUsersWorkspacesService = {
+    addUserToWorkspace: jest.fn().mockResolvedValue(true),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -137,9 +142,7 @@ describe('AuthService', () => {
 
       mockJwtService.verify.mockReturnValue(mockPayload);
       mockUserDbService.findById.mockResolvedValue(mockUser);
-      mockJwtService.sign
-        .mockReturnValueOnce('newAccess')
-        .mockReturnValueOnce('newRefresh');
+      mockJwtService.sign.mockReturnValueOnce('newAccess').mockReturnValueOnce('newRefresh');
       mockUserDbService.repository.save.mockResolvedValue({});
 
       const result = await service.refreshAccessToken('oldRefresh');
