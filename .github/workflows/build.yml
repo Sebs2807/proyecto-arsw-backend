@@ -46,11 +46,12 @@ jobs:
       - name: Run tests and generate coverage
         run: npm run test:cov --if-present
 
-      - name: Verify coverage file exists
+      - name: Fix LCOV paths for SonarCloud
+        if: always()
         run: |
-          echo "Verificando archivo de cobertura..."
-          ls -lah coverage
-          cat coverage/lcov.info | head -20 || echo "⚠️ No se encontró el archivo lcov.info"
+          echo "Corrigiendo rutas de Windows en coverage/lcov.info..."
+          sed -i 's|\\|/|g' coverage/lcov.info
+          head -20 coverage/lcov.info
 
       - name: SonarCloud Scan
         env:
