@@ -46,6 +46,12 @@ jobs:
       - name: Run tests and generate coverage
         run: npm run test:cov --if-present
 
+      - name: Check coverage file
+        run: |
+          echo "Verificando archivo de cobertura..."
+          ls -R coverage || echo "No existe la carpeta coverage"
+
+
       - name: SonarCloud Scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
