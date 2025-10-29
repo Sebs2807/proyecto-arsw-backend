@@ -39,4 +39,7 @@ export class BoardEntity {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @Column({ length: 10, default: '#FFFFFF' })
+  color: string;
 }

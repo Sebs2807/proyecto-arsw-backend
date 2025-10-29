@@ -20,7 +20,8 @@ export class BoardsService {
     description: string | undefined,
     creatorId: string,
     membersIds: string[],
-    workpaceId: string,
+    workspaceId: string,
+    color?: string,
   ): Promise<BoardEntity> {
     const memberEntitiesWithNulls = await Promise.all(
       membersIds.map((id) => this.usersDbService.findById(id)),
@@ -35,7 +36,8 @@ export class BoardsService {
       description,
       createdBy: { id: creatorId },
       members: validMemberEntities,
-      workspace: { id: workpaceId },
+      workspace: { id: workspaceId },
+      color: color || '#FFFFFF',
     });
 
     return this.boardsDbService.repository.save(board);
@@ -44,48 +46,36 @@ export class BoardsService {
   async findAll(queryBoard: QueryBoardDto, userId: string) {
     try {
       const { search, workspaceId, page, limit } = queryBoard;
-      console.log(
-        `Searching boards in workspace ${workspaceId} for user ${userId} with term: ${search}`,
-      );
-      console.log(page, limit);
       const skip = (page - 1) * limit;
-      console.log(skip);
 
       const query = this.boardsDbService.repository
         .createQueryBuilder('board')
-        .innerJoin('board.workspace', 'workspace', 'workspace.id = :workspaceId', {
-          workspaceId: workspaceId,
-        })
-        .innerJoin('board.members', 'members', 'members.id = :userId', { userId })
-
+        .leftJoin('board.workspace', 'workspace')
+        .leftJoin('board.createdBy', 'createdBy')
+        .leftJoin('board.members', 'members')
         .leftJoinAndSelect('board.members', 'fullMembers')
-
+        .where('workspace.id = :workspaceId', { workspaceId })
+        .andWhere('(createdBy.id = :userId OR members.id = :userId)', { userId })
         .orderBy('board.createdAt', 'DESC')
         .skip(skip)
         .take(limit);
 
       if (search) {
-        query.andWhere('board.title LIKE :search', { search: `%${search}%` });
+        query.andWhere('LOWER(board.title) LIKE LOWER(:search)', { search: `%${search}%` });
       }
 
       const [boards, total] = await query.getManyAndCount();
 
-      console.log(boards);
-
-      const boardsDTO = plainToInstance(BoardDto, boards, {
-        excludeExtraneousValues: true,
-      });
+      const boardsDTO = plainToInstance(BoardDto, boards, { excludeExtraneousValues: true });
 
       this.logger.log(`Fetched ${boards.length} boards (page ${page}/${Math.ceil(total / limit)})`);
 
       return {
-        data: boardsDTO,
-        meta: {
-          total,
-          page: Number(page),
-          limit: Number(limit),
-          totalPages: Math.ceil(total / limit),
-        },
+        items: boardsDTO,
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
       this.logger.error(`Error fetching boards: ${error.message}`, error.stack);
