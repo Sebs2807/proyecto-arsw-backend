@@ -17,6 +17,10 @@ export class CreateBoardDto {
   @IsNotEmpty()
   workspaceId: string;
 
+  @ApiProperty({description: 'Color en formato HEX para personalizar el tablero.', example: '#3498db', required: false,})
+  @IsString()
+  color: string;
+
   @ApiProperty({
     description: 'Array de IDs de usuario que serán miembros.',
     type: [String],
