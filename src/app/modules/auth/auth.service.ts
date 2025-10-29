@@ -46,10 +46,11 @@ export class AuthService {
     try {
       let user = await this.usersService.findByEmail(email);
 
-      console.log('refesh token in loginOrCreateGoogleUser:', googleRefreshToken);
+      console.log('refresh token in loginOrCreateGoogleUser:', googleRefreshToken);
 
       if (!user) {
-        // Creamos usuario completo, no omitido
+        this.logger.log(`Creating new user with email: ${email}`);
+
         const newUser = await this.usersService.createUser({
           email,
           firstName,
@@ -57,6 +58,16 @@ export class AuthService {
           picture,
           googleRefreshToken,
         });
+
+        const firstWorkspace = await this.workspacesService.createWorkspace(
+          `${firstName}'s Workspace`,
+        );
+
+        await this.usersWorkspacesService.addUserToWorkspace(
+          newUser.id,
+          firstWorkspace.id,
+          Role.SUPER_ADMIN,
+        );
 
         const accessToken = this.jwtService.sign(
           { id: newUser.id, email: newUser.email },
@@ -68,8 +79,10 @@ export class AuthService {
           { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
         );
 
-        // Asignamos al usuario completo, no al sanitizado
-        const fullUser = await this.userDbService.repository.findOne({ where: { id: newUser.id } });
+        const fullUser = await this.userDbService.repository.findOne({
+          where: { id: newUser.id },
+        });
+
         if (fullUser) {
           fullUser.JWTRefreshToken = refreshToken;
           await this.userDbService.repository.save(fullUser);
