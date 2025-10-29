@@ -7,6 +7,8 @@ import { UserEntity } from 'src/database/entities/user.entity';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
 import { Role } from 'src/database/entities/userworkspace.entity';
+import { BoardsService } from '../boards/boards.service';
+import { AuthUserDto } from '../users/dtos/authUser.dto';
 
 interface GoogleUserPayload {
   email: string;
@@ -26,9 +28,10 @@ export class AuthService {
     private readonly userDbService: UsersDBService,
     private readonly workspacesService: WorkspacesService,
     private readonly usersWorkspacesService: UsersWorkspacesService,
+    private readonly boardsService: BoardsService,
   ) {}
 
-  async validateGoogleUser(googleUser: GoogleUserPayload): Promise<UserEntity> {
+  async validateGoogleUser(googleUser: GoogleUserPayload): Promise<AuthUserDto> {
     const user = await this.usersService.findByEmail(googleUser.email);
     if (!user) {
       throw new UnauthorizedException('Usuario no registrado con Google');
@@ -46,10 +49,11 @@ export class AuthService {
     try {
       let user = await this.usersService.findByEmail(email);
 
-      console.log('refesh token in loginOrCreateGoogleUser:', googleRefreshToken);
+      console.log('refresh token in loginOrCreateGoogleUser:', googleRefreshToken);
 
       if (!user) {
-        // Creamos usuario completo, no omitido
+        this.logger.log(`Creating new user with email: ${email}`);
+
         const newUser = await this.usersService.createUser({
           email,
           firstName,
@@ -57,6 +61,24 @@ export class AuthService {
           picture,
           googleRefreshToken,
         });
+
+        const firstWorkspace = await this.workspacesService.createWorkspace(
+          `${firstName}'s Workspace`,
+        );
+
+        const firstBoard = await this.boardsService.createBoard(
+          `${firstName}'s Board`,
+          `Welcome board for ${firstName}'s Workspace`,
+          newUser.id,
+          [newUser.id],
+          firstWorkspace.id,
+        );
+
+        await this.usersWorkspacesService.addUserToWorkspace(
+          newUser.id,
+          firstWorkspace.id,
+          Role.SUPER_ADMIN,
+        );
 
         const accessToken = this.jwtService.sign(
           { id: newUser.id, email: newUser.email },
@@ -68,8 +90,11 @@ export class AuthService {
           { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
         );
 
-        // Asignamos al usuario completo, no al sanitizado
-        const fullUser = await this.userDbService.repository.findOne({ where: { id: newUser.id } });
+        // 5️⃣ Guardar refresh token en el usuario completo
+        const fullUser = await this.userDbService.repository.findOne({
+          where: { id: newUser.id },
+        });
+
         if (fullUser) {
           fullUser.JWTRefreshToken = refreshToken;
           await this.userDbService.repository.save(fullUser);
@@ -79,6 +104,7 @@ export class AuthService {
       } else {
         this.logger.log(`Found existing user with email: ${email}`);
 
+        // Generar tokens para usuario existente
         const accessToken = this.jwtService.sign(
           { id: user.id, email: user.email },
           { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },

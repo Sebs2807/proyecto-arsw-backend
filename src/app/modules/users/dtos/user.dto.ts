@@ -1,42 +1,57 @@
-// src/users/dto/create-user.dto.ts
-import { IsEmail, IsOptional, IsString } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+// src/users/dto/user.dto.ts
+
+import { Expose, Exclude, Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class UserDto {
   @ApiProperty({
-    description: "User's first name",
-    example: 'John',
+    description: 'Identificador único del usuario',
+    example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+    format: 'uuid',
   })
-  @IsString()
+  @Expose()
+  id: string;
+
+  @ApiProperty({
+    description: 'Nombre de pila del usuario',
+    example: 'Santiago',
+  })
+  @Expose()
   firstName: string;
 
   @ApiProperty({
-    description: "User's last name",
-    example: 'Doe',
+    description: 'Apellido del usuario',
+    example: 'Diaz',
   })
-  @IsString()
+  @Expose()
   lastName: string;
 
   @ApiProperty({
-    description: "User's email address",
-    example: 'john.doe@example.com',
+    description: 'Correo electrónico único del usuario',
+    example: 'santiago.diaz@synapse.com',
   })
-  @IsEmail()
+  @Expose()
   email: string;
 
-  @ApiPropertyOptional({
-    description: "URL of the user's profile picture",
-    example: 'https://example.com/avatar.jpg',
+  @ApiProperty({
+    description: 'URL de la imagen de perfil (opcional)',
+    example: 'https://cdn.example.com/pic.jpg',
+    nullable: true,
   })
-  @IsOptional()
-  @IsString()
-  picture?: string;
+  @Expose()
+  picture: string;
 
-  @ApiPropertyOptional({
-    description: 'JWT refresh token for session renewal',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  })
-  @IsOptional()
-  @IsString()
+  @Exclude()
+  googleRefreshToken?: string;
+
+  @Exclude()
   JWTRefreshToken?: string;
+
+  @ApiProperty({
+    description: 'Fecha de creación del usuario',
+    type: String,
+    format: 'date-time',
+  })
+  @Expose()
+  createdAt: Date;
 }
