@@ -48,7 +48,12 @@ jobs:
 
       - name: Fix LCOV paths for SonarCloud
         if: always()
+      - name: Fix LCOV paths for SonarCloud
+        if: always()
         run: |
+          echo "Corrigiendo rutas de Windows en coverage/lcov.info..."
+          sed -i 's|\\|/|g' coverage/lcov.info
+          head -20 coverage/lcov.info
           echo "Corrigiendo rutas de Windows en coverage/lcov.info..."
           sed -i 's|\\|/|g' coverage/lcov.info
           head -20 coverage/lcov.info
