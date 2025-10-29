@@ -90,7 +90,6 @@ export class AuthService {
           { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
         );
 
-        // 5️⃣ Guardar refresh token en el usuario completo
         const fullUser = await this.userDbService.repository.findOne({
           where: { id: newUser.id },
         });

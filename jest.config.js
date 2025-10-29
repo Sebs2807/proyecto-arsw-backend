@@ -5,7 +5,13 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
-  collectCoverageFrom: ['**/*.(t|j)s'],
+  collectCoverageFrom: [
+    '**/*.(t|j)s',
+    '!**/main.ts',          
+    '!**/test/**',            
+    '!**/app/common/**',            
+
+  ],
   testEnvironment: 'node',
 
   moduleNameMapper: {
