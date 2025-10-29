@@ -38,7 +38,9 @@ export class AuthController {
     const googleUser = req.user as GoogleUserPayload;
 
     if (!googleUser) {
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_auth_failed`);
+      return res.redirect(
+        `https://was-traffic-maximize-spouse.trycloudflare.com/login?error=google_auth_failed`,
+      );
     }
 
     const { accessToken, refreshToken } = await this.authService.loginOrCreateGoogleUser(
@@ -52,15 +54,15 @@ export class AuthController {
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'strict',
+      sameSite: 'none',
     });
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'strict',
+      sameSite: 'none',
     });
 
-    return res.redirect(`${process.env.FRONTEND_URL}/`);
+    return res.redirect(`https://was-traffic-maximize-spouse.trycloudflare.com/`);
   }
 
   @Get('refresh-token')

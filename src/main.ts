@@ -31,7 +31,7 @@ export async function bootstrap() {
   });
 
   app.enableCors({
-    origin: process.env.FRONTEND_URL,
+    origin: true,
     credentials: true,
   });
 
