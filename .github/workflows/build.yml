@@ -46,11 +46,12 @@ jobs:
       - name: Run tests and generate coverage
         run: npm run test:cov --if-present
 
-      - name: Verify coverage file exists
+      - name: Fix LCOV paths for SonarCloud
+        if: always()
         run: |
-          echo "Verificando archivo de cobertura..."
-          ls -lah coverage
-          cat coverage/lcov.info | head -20 || echo "⚠️ No se encontró el archivo lcov.info"
+          echo "Corrigiendo rutas de Windows en coverage/lcov.info..."
+          sed -i 's|\\|/|g' coverage/lcov.info
+          head -20 coverage/lcov.info
 
       - name: SonarCloud Scan
         env:
@@ -59,7 +60,7 @@ jobs:
         run: |
           echo "Running SonarCloud analysis..."
           npx sonar-scanner \
-            -Dsonar.projectKey=Sebs2807_proyecto-arsw \
+            -Dsonar.projectKey=Sebs2807_proyecto-arsw-backend \
             -Dsonar.organization=sebs2807 \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.sources=src \
@@ -68,4 +69,3 @@ jobs:
             -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.verbose=true
-          fi
