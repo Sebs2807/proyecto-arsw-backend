@@ -5,6 +5,8 @@ on:
     branches:
       - prod
       - dev
+      - prod
+      - dev
       - 'feature/*'
   pull_request:
     types: [opened, synchronize, reopened]
@@ -60,7 +62,18 @@ jobs:
         run: |
           echo "Running SonarCloud analysis..."
           npx sonar-scanner \
-            -Dsonar.projectKey=Sebs2807_proyecto-arsw \
+            -Dsonar.projectKey=Sebs2807_proyecto-arsw-backend \
+            -Dsonar.organization=sebs2807 \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.sources=src \
+            -Dsonar.tests=src \
+            -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
+            -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.verbose=true
+          echo "Running SonarCloud analysis..."
+          npx sonar-scanner \
+            -Dsonar.projectKey=Sebs2807_proyecto-arsw-backend \
             -Dsonar.organization=sebs2807 \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.sources=src \
