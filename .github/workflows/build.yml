@@ -3,8 +3,8 @@ name: SonarCloud Full Analysis
 on:
   push:
     branches:
-      - master
-      - develop
+      - prod
+      - dev
       - 'feature/*'
   pull_request:
     types: [opened, synchronize, reopened]
@@ -46,36 +46,26 @@ jobs:
       - name: Run tests and generate coverage
         run: npm run test:cov --if-present
 
+      - name: Fix LCOV paths for SonarCloud
+        if: always()
+        run: |
+          echo "Corrigiendo rutas de Windows en coverage/lcov.info..."
+          sed -i 's|\\|/|g' coverage/lcov.info
+          head -20 coverage/lcov.info
+
       - name: SonarCloud Scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "${{ github.event.pull_request.number }}" ]; then
-            echo "Running SonarCloud PR analysis for #${{ github.event.pull_request.number }}"
-            npx sonar-scanner \
-              -Dsonar.projectKey=Sebs2807_proyecto-arsw \
-              -Dsonar.organization=sebs2807 \
-              -Dsonar.host.url=https://sonarcloud.io \
-              -Dsonar.sources=src \
-              -Dsonar.tests=src \
-              -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
-              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-              -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
-              -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
-              -Dsonar.pullrequest.branch=${{ github.head_ref }} \
-              -Dsonar.pullrequest.base=${{ github.base_ref }} \
-              -Dsonar.verbose=true
-          else
-            echo "Running SonarCloud branch analysis"
-            npx sonar-scanner \
-              -Dsonar.projectKey=Sebs2807_proyecto-arsw \
-              -Dsonar.organization=sebs2807 \
-              -Dsonar.host.url=https://sonarcloud.io \
-              -Dsonar.sources=src \
-              -Dsonar.tests=src \
-              -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
-              -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-              -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
-              -Dsonar.verbose=true
-          fi
+          echo "Running SonarCloud analysis..."
+          npx sonar-scanner \
+            -Dsonar.projectKey=Sebs2807_proyecto-arsw-backend \
+            -Dsonar.organization=sebs2807 \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.sources=src \
+            -Dsonar.tests=src \
+            -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
+            -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.verbose=true
