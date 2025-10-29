@@ -16,19 +16,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { UserEntity } from '../../../database/entities/user.entity';
 import type { RequestWithUser } from '../auth/auth.controller';
 import { QueryBoardDto } from './dtos/queryBoard.dto';
-
-interface CreateBoardDto {
-  title: string;
-  description?: string;
-  membersIds: string[];
-  workspaceId: string;
-}
-
-interface UpdateBoardDto {
-  title?: string;
-  description?: string;
-  members?: UserEntity[];
-}
+import { CreateBoardDto } from './dtos/CreateBoard.dto';
 
 @Controller({ path: 'boards', version: '1' })
 @UseGuards(JwtAuthGuard)
@@ -42,8 +30,9 @@ export class BoardsController {
       body.title,
       body.description,
       user.id,
-      body.membersIds || [],
+      body.memberIds || [],
       body.workspaceId,
+      body.color,
     );
   }
 
@@ -59,7 +48,7 @@ export class BoardsController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() body: UpdateBoardDto) {
+  async update(@Param('id') id: string, @Body() body: Partial<CreateBoardDto>) {
     return this.boardsService.updateBoard(id, body);
   }
 

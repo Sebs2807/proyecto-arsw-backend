@@ -63,4 +63,11 @@ export class BoardDto {
   })
   @Expose()
   createdAt: Date;
+
+  @ApiProperty({
+    description: 'Color representativo del tablero en formato HEX',
+    example: '#FF5733',
+  })
+  @Expose()
+  color: string;
 }
