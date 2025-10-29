@@ -5,8 +5,8 @@ import cookieParser from 'cookie-parser';
 import * as fs from 'fs';
 import 'reflect-metadata';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ResponseInterceptor } from './app/common/interceptors/response.interceptor';
-import { AllExceptionsFilter } from './app/common/filters/http-interceptor.filter';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { AllExceptionsFilter } from './common/filters/http-interceptor.filter';
 
 async function bootstrap() {
   const httpsOptions = {

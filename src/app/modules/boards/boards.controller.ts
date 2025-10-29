@@ -1,13 +1,27 @@
-import { Body, Controller, Get, Post, Param, Patch, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Patch,
+  Delete,
+  UseGuards,
+  Req,
+  Query,
+  Search,
+} from '@nestjs/common';
 import { BoardsService } from './boards.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { UserEntity } from '../../../database/entities/user.entity';
 import type { RequestWithUser } from '../auth/auth.controller';
+import { QueryBoardDto } from './dtos/queryBoard.dto';
 
 interface CreateBoardDto {
   title: string;
   description?: string;
-  members?: UserEntity[];
+  membersIds: string[];
+  workspaceId: string;
 }
 
 interface UpdateBoardDto {
@@ -28,13 +42,15 @@ export class BoardsController {
       body.title,
       body.description,
       user.id,
-      body.members || [],
+      body.membersIds || [],
+      body.workspaceId,
     );
   }
 
-  @Get()
-  async findAll() {
-    return this.boardsService.findAll();
+  @Get('paginated')
+  async findPaginated(@Query() queryBoardDto: QueryBoardDto, @Req() req: RequestWithUser) {
+    const user = req.user;
+    return this.boardsService.findAll(queryBoardDto, user.id);
   }
 
   @Get(':id')

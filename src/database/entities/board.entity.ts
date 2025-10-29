@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
-import { use } from 'passport';
+import { WorkspaceEntity } from './workspace.entity';
 
 @Entity('boards')
 export class BoardEntity {
@@ -25,8 +25,13 @@ export class BoardEntity {
   @ManyToOne(() => UserEntity, (user) => user.id)
   createdBy: UserEntity;
 
+  @ManyToOne(() => WorkspaceEntity, (workpace) => workpace.id)
+  workspace: WorkspaceEntity;
+
   @ManyToMany(() => UserEntity, { eager: true })
-  @JoinTable()
+  @JoinTable({
+    name: 'boards_members',
+  })
   members: UserEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
