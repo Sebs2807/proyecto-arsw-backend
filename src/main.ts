@@ -8,7 +8,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-interceptor.filter';
 
-async function bootstrap() {
+export async function bootstrap() {
   const httpsOptions = {
     key: fs.readFileSync('./certs/synapse+1-key.pem') as Buffer,
     cert: fs.readFileSync('./certs/synapse+1.pem') as Buffer,
