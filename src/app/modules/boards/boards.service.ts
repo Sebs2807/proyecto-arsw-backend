@@ -68,8 +68,6 @@ export class BoardsService {
 
       const boardsDTO = plainToInstance(BoardDto, boards, { excludeExtraneousValues: true });
 
-      console.log(boardsDTO);
-
       this.logger.log(`Fetched ${boards.length} boards (page ${page}/${Math.ceil(total / limit)})`);
 
       return {

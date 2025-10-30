@@ -66,7 +66,7 @@ export class AuthService {
           `${firstName}'s Workspace`,
         );
 
-        const firstBoard = await this.boardsService.createBoard(
+        await this.boardsService.createBoard(
           `${firstName}'s Board`,
           `Welcome board for ${firstName}'s Workspace`,
           newUser.id,

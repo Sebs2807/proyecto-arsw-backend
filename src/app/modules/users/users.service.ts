@@ -6,7 +6,10 @@ import { QueryUserDto } from './dtos/queryUser.dto';
 import { UserDto } from './dtos/user.dto';
 import { plainToInstance } from 'class-transformer';
 import { AuthUserDto } from './dtos/authUser.dto';
+<<<<<<< HEAD
 import { Role } from 'src/database/entities/userworkspace.entity';
+=======
+>>>>>>> 2e2c31f52a15a7481db89a7e1293cd04adcc92cf
 
 @Injectable()
 export class UsersService {
@@ -166,8 +169,6 @@ export class UsersService {
         return null;
       }
 
-      console.log(user);
-
       return plainToInstance(AuthUserDto, user, { excludeExtraneousValues: true });
     } catch (error) {
       this.logger.error(`Error fetching user by email: ${error.message}`, error.stack);
@@ -219,14 +220,11 @@ export class UsersService {
     }
   }
 
-  // 5. MÉTODO: create (Solo para persistencia, sin transformación de salida)
   async create(data: Partial<UserEntity>) {
     const user = this.usersDbService.repository.create(data);
     return this.usersDbService.repository.save(user);
   }
 
-  // 6. MÉTODO: updateUser
-  // 💡 Tipado de retorno: Usar el DTO de respuesta para la limpieza.
   async updateUser(id: string, data: Partial<UserEntity>): Promise<UserDto> {
     const user = await this.usersDbService.repository.findOne({ where: { id } });
     if (!user) throw new Error('User not found');
@@ -234,23 +232,12 @@ export class UsersService {
     Object.assign(user, data);
     const updatedUser = await this.usersDbService.repository.save(user);
 
-    // ✅ Reemplazo de sanitizeUser por plainToInstance
     return plainToInstance(UserDto, updatedUser, { excludeExtraneousValues: true });
   }
 
-  // 7. MÉTODO: deleteUser (Sin cambios necesarios)
   async deleteUser(id: string) {
     const result = await this.usersDbService.repository.delete(id);
     if (result.affected === 0) throw new Error('User not found');
     return { message: 'User deleted successfully' };
   }
-
-  // ❌ REMOVIDO: Este método ya no es necesario
-  /*
-  private sanitizeUser(
-    user: UserEntity,
-  ): Omit<UserEntity, 'JWTRefreshToken' | 'googleRefreshToken'> {
-    // ...
-  }
-  */
 }

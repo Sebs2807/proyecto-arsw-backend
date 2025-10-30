@@ -7,7 +7,7 @@ import { WorkspaceEntity } from 'src/database/entities/workspace.entity';
 export class WorkspacesService {
   private readonly logger = new Logger(WorkspacesService.name);
 
-  constructor(private workspaceDBService: WorkspaceDBService) {}
+  constructor(private readonly workspaceDBService: WorkspaceDBService) {}
 
   async createWorkspace(name: string) {
     this.logger.log(`Creating workspace with name: ${name}`);

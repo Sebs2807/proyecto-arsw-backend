@@ -1,5 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
+<<<<<<< HEAD
 import { IsOptional, IsUUID } from 'class-validator';
+=======
+import { IsUUID } from 'class-validator';
+>>>>>>> 2e2c31f52a15a7481db89a7e1293cd04adcc92cf
 import { Role } from 'src/database/entities/userworkspace.entity';
 
 export class QueryUserDto {

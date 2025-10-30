@@ -39,7 +39,6 @@ export class BoardsController {
   @Get('paginated')
   async findPaginated(@Query() queryBoardDto: QueryBoardDto, @Req() req: RequestWithUser) {
     const user = req.user;
-    console.log('dto:', queryBoardDto);
     return this.boardsService.findAll(queryBoardDto, user.id);
   }
 

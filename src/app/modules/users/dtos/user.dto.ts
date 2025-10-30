@@ -1,6 +1,10 @@
 // src/users/dto/user.dto.ts
 
+<<<<<<< HEAD
 import { Expose, Exclude } from 'class-transformer';
+=======
+import { Expose, Exclude, Type } from 'class-transformer';
+>>>>>>> 2e2c31f52a15a7481db89a7e1293cd04adcc92cf
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UserDto {
@@ -13,7 +17,11 @@ export class UserDto {
   id: string;
 
   @ApiProperty({
+<<<<<<< HEAD
     description: 'Nombre del usuario',
+=======
+    description: 'Nombre de pila del usuario',
+>>>>>>> 2e2c31f52a15a7481db89a7e1293cd04adcc92cf
     example: 'Santiago',
   })
   @Expose()
@@ -27,7 +35,7 @@ export class UserDto {
   lastName: string;
 
   @ApiProperty({
-    description: 'Correo electrónico del usuario',
+    description: 'Correo electrónico único del usuario',
     example: 'santiago.diaz@synapse.com',
   })
   @Expose()
