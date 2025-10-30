@@ -10,6 +10,7 @@ import { WorkspacesService } from '../workspaces/workspaces.service';
 import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
 import { UsersWorkspacesModule } from '../users-workspaces/usersworkspaces.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { BoardsModule } from '../boards/boards.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
     UsersModule,
     UsersWorkspacesModule,
     WorkspacesModule,
+    BoardsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, GoogleStrategy, JwtStrategy],

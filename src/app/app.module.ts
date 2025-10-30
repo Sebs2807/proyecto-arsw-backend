@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { join } from 'path';
-import { readFileSync } from 'fs';
+import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 import { AuthModule } from '../app/modules/auth/auth.module';
 import { DatabaseModule } from 'src/database/database.module';
@@ -31,7 +31,7 @@ import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspace
       useFactory: (config: ConfigService) => ({
         type: 'mysql',
         host: config.get('DB_HOST'),
-        port: parseInt(config.get('DB_PORT', '3306')),
+        port: Number.parseInt(config.get('DB_PORT', '3306')),
         username: config.get('DB_USER'),
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),

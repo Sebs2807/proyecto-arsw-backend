@@ -1,20 +1,22 @@
-import { Body, Controller, Get, Post, Param, Patch, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Patch,
+  Delete,
+  UseGuards,
+  Req,
+  Query,
+  Search,
+} from '@nestjs/common';
 import { BoardsService } from './boards.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { UserEntity } from '../../../database/entities/user.entity';
 import type { RequestWithUser } from '../auth/auth.controller';
-
-interface CreateBoardDto {
-  title: string;
-  description?: string;
-  members?: UserEntity[];
-}
-
-interface UpdateBoardDto {
-  title?: string;
-  description?: string;
-  members?: UserEntity[];
-}
+import { QueryBoardDto } from './dtos/queryBoard.dto';
+import { CreateBoardDto } from './dtos/CreateBoard.dto';
 
 @Controller({ path: 'boards', version: '1' })
 @UseGuards(JwtAuthGuard)
@@ -28,13 +30,16 @@ export class BoardsController {
       body.title,
       body.description,
       user.id,
-      body.members || [],
+      body.memberIds || [],
+      body.workspaceId,
+      body.color,
     );
   }
 
-  @Get()
-  async findAll() {
-    return this.boardsService.findAll();
+  @Get('paginated')
+  async findPaginated(@Query() queryBoardDto: QueryBoardDto, @Req() req: RequestWithUser) {
+    const user = req.user;
+    return this.boardsService.findAll(queryBoardDto, user.id);
   }
 
   @Get(':id')
@@ -43,7 +48,7 @@ export class BoardsController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() body: UpdateBoardDto) {
+  async update(@Param('id') id: string, @Body() body: Partial<CreateBoardDto>) {
     return this.boardsService.updateBoard(id, body);
   }
 

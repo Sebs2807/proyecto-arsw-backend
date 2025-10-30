@@ -6,7 +6,7 @@ import { WorkspacesService } from './workspaces.service';
 @Controller({ path: 'workspaces', version: '1' })
 @UseGuards(JwtAuthGuard)
 export class WorkspacesController {
-  constructor(private workspacesService: WorkspacesService) {}
+  constructor(private readonly workspacesService: WorkspacesService) {}
 
   @Get()
   async getAllWorkspaces(@Req() req: RequestWithUser) {

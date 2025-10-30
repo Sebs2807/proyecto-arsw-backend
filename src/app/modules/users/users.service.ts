@@ -2,9 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { UserEntity } from '../../../database/entities/user.entity';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { JwtService } from '@nestjs/jwt';
-import { FindManyOptions, Like } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryUserDto } from './dtos/queryUser.dto';
+import { UserDto } from './dtos/user.dto';
+import { plainToInstance } from 'class-transformer';
+import { AuthUserDto } from './dtos/authUser.dto';
 
 @Injectable()
 export class UsersService {
@@ -13,43 +14,51 @@ export class UsersService {
   constructor(
     private readonly usersDbService: UsersDBService,
     private readonly jwtService: JwtService,
-    @InjectRepository(UserEntity)
-    private usersRepository: Repository<UserEntity>,
   ) {}
 
-  // Devuelve solo los campos públicos de un usuario
-  private sanitizeUser(
-    user: UserEntity,
-  ): Omit<UserEntity, 'JWTRefreshToken' | 'googleRefreshToken'> {
-    const { JWTRefreshToken, googleRefreshToken, ...safeUser } = user;
-    return safeUser;
-  }
+  async findAll(queryUser: QueryUserDto) {
+    const { page, limit, search, role, boardId, workspaceId } = queryUser;
 
-  // Obtiene todos los usuarios con paginación y búsqueda
-  async findAll(page = 1, limit = 10, search?: string) {
     try {
       const skip = (page - 1) * limit;
 
-      const options: FindManyOptions<UserEntity> = {
-        skip,
-        take: limit,
-        order: { createdAt: 'DESC' },
-      };
+      const queryBuilder = this.usersDbService.repository.createQueryBuilder('user');
+      queryBuilder.innerJoin('user.workspaces', 'uw');
+      queryBuilder.andWhere('uw.workspaceId = :wsId', { wsId: workspaceId });
 
-      if (search) {
-        options.where = [
-          { email: Like(`%${search}%`) },
-          { firstName: Like(`%${search}%`) },
-          { lastName: Like(`%${search}%`) },
-        ];
+      if (role) {
+        queryBuilder.andWhere('uw.role = :userRole', { userRole: role });
       }
 
-      const [data, total] = await this.usersDbService.repository.findAndCount(options);
+      if (boardId) {
+        queryBuilder.innerJoin('boards_members', 'bm', 'bm.usersId = user.id');
+        queryBuilder.andWhere('bm.boardsId = :targetBoardId', { targetBoardId: boardId });
+      }
+
+      if (search) {
+        queryBuilder.andWhere(
+          '(user.email LIKE :search OR user.firstName LIKE :search OR user.lastName LIKE :search)',
+          { search: `%${search}%` },
+        );
+      }
+
+      queryBuilder.groupBy('user.id');
+      queryBuilder.addGroupBy('uw.id');
+
+      const total = await queryBuilder.getCount();
+
+      queryBuilder.orderBy('user.createdAt', 'DESC').skip(skip).take(limit);
+
+      const data = await queryBuilder.getMany();
+
+      const transformedData = plainToInstance(UserDto, data, {
+        excludeExtraneousValues: true,
+      });
 
       this.logger.log(`Fetched ${data.length} users (page ${page}/${Math.ceil(total / limit)})`);
 
       return {
-        data: data.map((user) => this.sanitizeUser(user)),
+        data: transformedData,
         meta: {
           total,
           page,
@@ -63,27 +72,26 @@ export class UsersService {
     }
   }
 
-  // Busca usuario por email
-  async findByEmail(
-    email: string,
-  ): Promise<Omit<UserEntity, 'JWTRefreshToken' | 'googleRefreshToken'> | null> {
+  // 2. MÉTODO: findByEmail
+  // 💡 Tipado de retorno: Usar el DTO de respuesta para la limpieza.
+  async findByEmail(email: string): Promise<AuthUserDto | null> {
     try {
       const user = await this.usersDbService.repository.findOne({ where: { email } });
       if (!user) {
         this.logger.warn(`User with email ${email} not found`);
         return null;
       }
-      return this.sanitizeUser(user);
+
+      return plainToInstance(AuthUserDto, user, { excludeExtraneousValues: true });
     } catch (error) {
       this.logger.error(`Error fetching user by email: ${error.message}`, error.stack);
       throw new Error('Failed to fetch user by email');
     }
   }
 
-  // Crea un usuario nuevo
-  async createUser(
-    userData: Partial<UserEntity>,
-  ): Promise<Omit<UserEntity, 'JWTRefreshToken' | 'googleRefreshToken'>> {
+  // 3. MÉTODO: createUser
+  // 💡 Tipado de retorno: Usar el DTO de respuesta para la limpieza.
+  async createUser(userData: Partial<UserEntity>): Promise<UserDto> {
     try {
       const newUser = this.usersDbService.repository.create(userData);
       const savedUser = await this.usersDbService.repository.save(newUser);
@@ -93,14 +101,16 @@ export class UsersService {
       }
 
       this.logger.log(`User created with ID ${savedUser.id}`);
-      return this.sanitizeUser(savedUser);
+
+      // ✅ Reemplazo de sanitizeUser por plainToInstance
+      return plainToInstance(UserDto, savedUser, { excludeExtraneousValues: true });
     } catch (error) {
       this.logger.error(`Error creating user: ${error.message}`, error.stack);
       throw new Error('Failed to create user');
     }
   }
 
-  // Genera un refresh token nuevo para un usuario
+  // 4. MÉTODO: generateNewRefreshToken (No necesita transformación de salida)
   async generateNewRefreshToken(userId: string): Promise<string> {
     try {
       if (!userId) throw new Error('User ID is required');
@@ -127,25 +137,38 @@ export class UsersService {
     }
   }
 
+  // 5. MÉTODO: create (Solo para persistencia, sin transformación de salida)
   async create(data: Partial<UserEntity>) {
-    const user = this.usersRepository.create(data);
-    return this.usersRepository.save(user);
+    const user = this.usersDbService.repository.create(data);
+    return this.usersDbService.repository.save(user);
   }
 
-  // Update user basic info
-  async updateUser(id: string, data: Partial<UserEntity>) {
-    const user = await this.usersRepository.findOne({ where: { id } });
+  // 6. MÉTODO: updateUser
+  // 💡 Tipado de retorno: Usar el DTO de respuesta para la limpieza.
+  async updateUser(id: string, data: Partial<UserEntity>): Promise<UserDto> {
+    const user = await this.usersDbService.repository.findOne({ where: { id } });
     if (!user) throw new Error('User not found');
 
     Object.assign(user, data);
-    const updatedUser = await this.usersRepository.save(user);
-    return this.sanitizeUser(updatedUser);
+    const updatedUser = await this.usersDbService.repository.save(user);
+
+    // ✅ Reemplazo de sanitizeUser por plainToInstance
+    return plainToInstance(UserDto, updatedUser, { excludeExtraneousValues: true });
   }
 
-  // Delete user by id
+  // 7. MÉTODO: deleteUser (Sin cambios necesarios)
   async deleteUser(id: string) {
-    const result = await this.usersRepository.delete(id);
+    const result = await this.usersDbService.repository.delete(id);
     if (result.affected === 0) throw new Error('User not found');
     return { message: 'User deleted successfully' };
   }
+
+  // ❌ REMOVIDO: Este método ya no es necesario
+  /*
+  private sanitizeUser(
+    user: UserEntity,
+  ): Omit<UserEntity, 'JWTRefreshToken' | 'googleRefreshToken'> {
+    // ...
+  }
+  */
 }

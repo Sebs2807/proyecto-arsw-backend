@@ -7,6 +7,8 @@ import { UserEntity } from 'src/database/entities/user.entity';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
 import { Role } from 'src/database/entities/userworkspace.entity';
+import { BoardsService } from '../boards/boards.service';
+import { AuthUserDto } from '../users/dtos/authUser.dto';
 
 interface GoogleUserPayload {
   email: string;
@@ -26,9 +28,10 @@ export class AuthService {
     private readonly userDbService: UsersDBService,
     private readonly workspacesService: WorkspacesService,
     private readonly usersWorkspacesService: UsersWorkspacesService,
+    private readonly boardsService: BoardsService,
   ) {}
 
-  async validateGoogleUser(googleUser: GoogleUserPayload): Promise<UserEntity> {
+  async validateGoogleUser(googleUser: GoogleUserPayload): Promise<AuthUserDto> {
     const user = await this.usersService.findByEmail(googleUser.email);
     if (!user) {
       throw new UnauthorizedException('Usuario no registrado con Google');
@@ -63,6 +66,14 @@ export class AuthService {
           `${firstName}'s Workspace`,
         );
 
+        await this.boardsService.createBoard(
+          `${firstName}'s Board`,
+          `Welcome board for ${firstName}'s Workspace`,
+          newUser.id,
+          [newUser.id],
+          firstWorkspace.id,
+        );
+
         await this.usersWorkspacesService.addUserToWorkspace(
           newUser.id,
           firstWorkspace.id,
@@ -92,6 +103,7 @@ export class AuthService {
       } else {
         this.logger.log(`Found existing user with email: ${email}`);
 
+        // Generar tokens para usuario existente
         const accessToken = this.jwtService.sign(
           { id: user.id, email: user.email },
           { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },

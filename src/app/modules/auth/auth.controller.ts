@@ -28,7 +28,6 @@ interface GoogleUserPayload {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // --- GOOGLE AUTH ---
   @Get('google')
   @UseGuards(AuthGuard('google'))
   googleAuth() {}
