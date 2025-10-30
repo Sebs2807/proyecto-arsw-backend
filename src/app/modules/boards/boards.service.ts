@@ -37,7 +37,7 @@ export class BoardsService {
       createdBy: { id: creatorId },
       members: validMemberEntities,
       workspace: { id: workspaceId },
-      color: color || '#FFFFFF',
+      color: color || '#2E2E5C',
     });
 
     return this.boardsDbService.repository.save(board);

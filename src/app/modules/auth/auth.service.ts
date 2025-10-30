@@ -102,6 +102,7 @@ export class AuthService {
         return { accessToken, refreshToken };
       } else {
         this.logger.log(`Found existing user with email: ${email}`);
+        console.log(user.id);
 
         // Generar tokens para usuario existente
         const accessToken = this.jwtService.sign(

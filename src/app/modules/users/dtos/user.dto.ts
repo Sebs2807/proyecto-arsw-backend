@@ -21,7 +21,7 @@ export class UserDto {
 
   @ApiProperty({
     description: 'Apellido del usuario',
-    example: 'Diaz',
+    example: 'Díaz',
   })
   @Expose()
   lastName: string;
@@ -39,13 +39,14 @@ export class UserDto {
     nullable: true,
   })
   @Expose()
-  picture: string;
+  picture?: string;
 
-  @Exclude()
-  googleRefreshToken?: string;
-
-  @Exclude()
-  JWTRefreshToken?: string;
+  @ApiProperty({
+    description: 'Rol asignado al usuario dentro del workspace',
+    example: 'ADMIN',
+  })
+  @Expose()
+  role: string;
 
   @ApiProperty({
     description: 'Fecha de creación del usuario',
@@ -54,4 +55,18 @@ export class UserDto {
   })
   @Expose()
   createdAt: Date;
+
+  @ApiProperty({
+    description: 'Última fecha de actualización del usuario',
+    type: String,
+    format: 'date-time',
+  })
+  @Expose()
+  updatedAt: Date;
+
+  @Exclude()
+  googleRefreshToken?: string;
+
+  @Exclude()
+  JWTRefreshToken?: string;
 }

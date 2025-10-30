@@ -6,6 +6,7 @@ import { QueryUserDto } from './dtos/queryUser.dto';
 import { UserDto } from './dtos/user.dto';
 import { plainToInstance } from 'class-transformer';
 import { AuthUserDto } from './dtos/authUser.dto';
+import { Role } from 'src/database/entities/userworkspace.entity';
 
 @Injectable()
 export class UsersService {
@@ -16,23 +17,34 @@ export class UsersService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async findAll(queryUser: QueryUserDto) {
+  async findAllByWorkspace(queryUser: QueryUserDto) {
     const { page, limit, search, role, boardId, workspaceId } = queryUser;
 
     try {
       const skip = (page - 1) * limit;
 
-      const queryBuilder = this.usersDbService.repository.createQueryBuilder('user');
-      queryBuilder.innerJoin('user.workspaces', 'uw');
-      queryBuilder.andWhere('uw.workspaceId = :wsId', { wsId: workspaceId });
+      const queryBuilder = this.usersDbService.repository
+        .createQueryBuilder('user')
+        .innerJoin('user.workspaces', 'uw', 'uw.workspaceId = :wsId', { wsId: workspaceId })
+        .addSelect([
+          'user.id AS id',
+          'user.firstName AS firstName',
+          'user.lastName AS lastName',
+          'user.email AS email',
+          'user.picture AS picture',
+          'user.createdAt AS createdAt',
+          'user.updatedAt AS updatedAt',
+          'uw.role AS role',
+        ]);
 
       if (role) {
         queryBuilder.andWhere('uw.role = :userRole', { userRole: role });
       }
 
       if (boardId) {
-        queryBuilder.innerJoin('boards_members', 'bm', 'bm.usersId = user.id');
-        queryBuilder.andWhere('bm.boardsId = :targetBoardId', { targetBoardId: boardId });
+        queryBuilder
+          .innerJoin('boards_members', 'bm', 'bm.usersId = user.id')
+          .andWhere('bm.boardsId = :targetBoardId', { targetBoardId: boardId });
       }
 
       if (search) {
@@ -42,23 +54,29 @@ export class UsersService {
         );
       }
 
-      queryBuilder.groupBy('user.id');
-      queryBuilder.addGroupBy('uw.id');
-
       const total = await queryBuilder.getCount();
 
       queryBuilder.orderBy('user.createdAt', 'DESC').skip(skip).take(limit);
 
-      const data = await queryBuilder.getMany();
+      const rawData = await queryBuilder.getRawMany();
 
-      const transformedData = plainToInstance(UserDto, data, {
+      const transformedData = plainToInstance(UserDto, rawData, {
         excludeExtraneousValues: true,
       });
 
-      this.logger.log(`Fetched ${data.length} users (page ${page}/${Math.ceil(total / limit)})`);
+      const withEnumKeys = transformedData.map((user) => ({
+        ...user,
+        role:
+          Object.keys(Role).find((key) => Role[key as keyof typeof Role] === user.role) ||
+          user.role,
+      }));
+
+      this.logger.log(
+        `Fetched ${withEnumKeys.length} users for workspace ${workspaceId} (page ${page}/${Math.ceil(total / limit)})`,
+      );
 
       return {
-        data: transformedData,
+        data: withEnumKeys,
         meta: {
           total,
           page,
@@ -67,13 +85,79 @@ export class UsersService {
         },
       };
     } catch (error) {
-      this.logger.error(`Error fetching users: ${error.message}`, error.stack);
-      throw new Error('Failed to fetch users');
+      this.logger.error(`Error fetching users by workspace: ${error.message}`, error.stack);
+      throw new Error('Failed to fetch users by workspace');
     }
   }
 
-  // 2. MÉTODO: findByEmail
-  // 💡 Tipado de retorno: Usar el DTO de respuesta para la limpieza.
+  async findManyByEmail(queryUser: QueryUserDto) {
+    try {
+      const page = Number(queryUser.page) || 1;
+      const limit = Number(queryUser.limit) || 10;
+      const search = queryUser.search || '';
+      const workspaceId = queryUser.workspaceId;
+
+      const skip = (page - 1) * limit;
+
+      const queryBuilder = this.usersDbService.repository
+        .createQueryBuilder('user')
+        .select([
+          'user.id AS id',
+          'user.firstName AS firstName',
+          'user.lastName AS lastName',
+          'user.email AS email',
+          'user.picture AS picture',
+          'user.createdAt AS createdAt',
+          'user.updatedAt AS updatedAt',
+        ]);
+
+      if (search) {
+        queryBuilder.andWhere(
+          '(user.email LIKE :search OR user.firstName LIKE :search OR user.lastName LIKE :search)',
+          { search: `%${search}%` },
+        );
+      }
+
+      if (workspaceId) {
+        queryBuilder.andWhere(
+          `user.id NOT IN (
+          SELECT uw.userId
+          FROM user_workspace uw
+          WHERE uw.workspaceId = :workspaceId
+        )`,
+          { workspaceId },
+        );
+      }
+
+      const total = await queryBuilder.getCount();
+
+      queryBuilder.orderBy('user.createdAt', 'DESC').skip(skip).take(limit);
+
+      const rawData = await queryBuilder.getRawMany();
+
+      const transformedData = plainToInstance(UserDto, rawData, {
+        excludeExtraneousValues: true,
+      });
+
+      this.logger.log(
+        `Fetched ${transformedData.length} users (page ${page}/${Math.ceil(
+          total / limit,
+        )}) ${workspaceId ? `excluding workspace ${workspaceId}` : ''}`,
+      );
+
+      return {
+        items: transformedData,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      this.logger.error(`Error fetching users by email: ${error.message}`, error.stack);
+      throw new Error('Failed to fetch users by email');
+    }
+  }
+
   async findByEmail(email: string): Promise<AuthUserDto | null> {
     try {
       const user = await this.usersDbService.repository.findOne({ where: { email } });
@@ -89,8 +173,6 @@ export class UsersService {
     }
   }
 
-  // 3. MÉTODO: createUser
-  // 💡 Tipado de retorno: Usar el DTO de respuesta para la limpieza.
   async createUser(userData: Partial<UserEntity>): Promise<UserDto> {
     try {
       const newUser = this.usersDbService.repository.create(userData);
@@ -102,7 +184,6 @@ export class UsersService {
 
       this.logger.log(`User created with ID ${savedUser.id}`);
 
-      // ✅ Reemplazo de sanitizeUser por plainToInstance
       return plainToInstance(UserDto, savedUser, { excludeExtraneousValues: true });
     } catch (error) {
       this.logger.error(`Error creating user: ${error.message}`, error.stack);
@@ -110,7 +191,6 @@ export class UsersService {
     }
   }
 
-  // 4. MÉTODO: generateNewRefreshToken (No necesita transformación de salida)
   async generateNewRefreshToken(userId: string): Promise<string> {
     try {
       if (!userId) throw new Error('User ID is required');
@@ -137,14 +217,11 @@ export class UsersService {
     }
   }
 
-  // 5. MÉTODO: create (Solo para persistencia, sin transformación de salida)
   async create(data: Partial<UserEntity>) {
     const user = this.usersDbService.repository.create(data);
     return this.usersDbService.repository.save(user);
   }
 
-  // 6. MÉTODO: updateUser
-  // 💡 Tipado de retorno: Usar el DTO de respuesta para la limpieza.
   async updateUser(id: string, data: Partial<UserEntity>): Promise<UserDto> {
     const user = await this.usersDbService.repository.findOne({ where: { id } });
     if (!user) throw new Error('User not found');
@@ -152,23 +229,12 @@ export class UsersService {
     Object.assign(user, data);
     const updatedUser = await this.usersDbService.repository.save(user);
 
-    // ✅ Reemplazo de sanitizeUser por plainToInstance
     return plainToInstance(UserDto, updatedUser, { excludeExtraneousValues: true });
   }
 
-  // 7. MÉTODO: deleteUser (Sin cambios necesarios)
   async deleteUser(id: string) {
     const result = await this.usersDbService.repository.delete(id);
     if (result.affected === 0) throw new Error('User not found');
     return { message: 'User deleted successfully' };
   }
-
-  // ❌ REMOVIDO: Este método ya no es necesario
-  /*
-  private sanitizeUser(
-    user: UserEntity,
-  ): Omit<UserEntity, 'JWTRefreshToken' | 'googleRefreshToken'> {
-    // ...
-  }
-  */
 }

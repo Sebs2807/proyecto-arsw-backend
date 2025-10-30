@@ -11,10 +11,10 @@ import { use } from 'passport';
 import { WorkspaceEntity } from './workspace.entity';
 
 export enum Role {
-  SUPER_ADMIN = 'superAdmin', // Only for initial setup
-  ADMIN = 'admin', // Can manage users and settings
-  MEMBER = 'member', // Regular user with standard permissions
-  GUEST = 'guest', // Limited access, view-only
+  SUPER_ADMIN = 'superAdmin',
+  ADMIN = 'admin',
+  MEMBER = 'member',
+  GUEST = 'guest',
 }
 
 @Entity('user_workspace')
