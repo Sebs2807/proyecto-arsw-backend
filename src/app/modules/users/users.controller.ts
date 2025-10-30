@@ -11,8 +11,6 @@ export class UsersController {
 
   @Get('paginated')
   async findPaginated(@Query() queryUserDto: QueryUserDto, @Req() req: RequestWithUser) {
-    const user = req.user;
-
     const response = await this.usersService.findAll(queryUserDto);
     return response;
   }

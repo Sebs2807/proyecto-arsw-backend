@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { VersioningType } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import 'reflect-metadata';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
