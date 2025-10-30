@@ -6,10 +6,7 @@ import { QueryUserDto } from './dtos/queryUser.dto';
 import { UserDto } from './dtos/user.dto';
 import { plainToInstance } from 'class-transformer';
 import { AuthUserDto } from './dtos/authUser.dto';
-<<<<<<< HEAD
 import { Role } from 'src/database/entities/userworkspace.entity';
-=======
->>>>>>> 2e2c31f52a15a7481db89a7e1293cd04adcc92cf
 
 @Injectable()
 export class UsersService {
