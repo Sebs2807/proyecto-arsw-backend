@@ -22,10 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: RequestWithCookies): string | null => {
-          console.log('Cookies recibidas:', req?.cookies); // <-- aquí logueamos
-          return req?.cookies?.accessToken ?? null;
-        },
+        (req: RequestWithCookies): string | null => req?.cookies?.accessToken ?? null,
       ]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_ACCESS_SECRET,
@@ -33,7 +30,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   validate(payload: JwtPayload) {
-    console.log('Payload decodificado:', payload); // <-- opcional
     return {
       id: payload.id,
       email: payload.email,

@@ -7,8 +7,11 @@ import { UserEntity } from 'src/database/entities/user.entity';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
 import { Role } from 'src/database/entities/userworkspace.entity';
+<<<<<<< HEAD
 import { BoardsService } from '../boards/boards.service';
 import { AuthUserDto } from '../users/dtos/authUser.dto';
+=======
+>>>>>>> b8eb1a7a911e407d145a1f91a43c478d4f469ea7
 
 interface GoogleUserPayload {
   email: string;
@@ -28,10 +31,16 @@ export class AuthService {
     private readonly userDbService: UsersDBService,
     private readonly workspacesService: WorkspacesService,
     private readonly usersWorkspacesService: UsersWorkspacesService,
+<<<<<<< HEAD
     private readonly boardsService: BoardsService,
   ) {}
 
   async validateGoogleUser(googleUser: GoogleUserPayload): Promise<AuthUserDto> {
+=======
+  ) {}
+
+  async validateGoogleUser(googleUser: GoogleUserPayload): Promise<UserEntity> {
+>>>>>>> b8eb1a7a911e407d145a1f91a43c478d4f469ea7
     const user = await this.usersService.findByEmail(googleUser.email);
     if (!user) {
       throw new UnauthorizedException('Usuario no registrado con Google');
@@ -102,9 +111,13 @@ export class AuthService {
         return { accessToken, refreshToken };
       } else {
         this.logger.log(`Found existing user with email: ${email}`);
+<<<<<<< HEAD
         console.log(user.id);
 
         // Generar tokens para usuario existente
+=======
+
+>>>>>>> b8eb1a7a911e407d145a1f91a43c478d4f469ea7
         const accessToken = this.jwtService.sign(
           { id: user.id, email: user.email },
           { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
