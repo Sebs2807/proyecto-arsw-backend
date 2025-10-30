@@ -4,6 +4,7 @@ import { UserEntity } from 'src/database/entities/user.entity';
 import { QueryUserDto } from './dtos/queryUser.dto';
 import type { RequestWithUser } from '../auth/auth.controller';
 import { use } from 'passport';
+import { ApiQuery } from '@nestjs/swagger';
 
 @Controller({ path: 'users', version: '1' })
 export class UsersController {
@@ -13,8 +14,13 @@ export class UsersController {
   async findPaginated(@Query() queryUserDto: QueryUserDto, @Req() req: RequestWithUser) {
     const user = req.user;
 
-    const response = await this.usersService.findAll(queryUserDto);
+    const response = await this.usersService.findAllByWorkspace(queryUserDto);
     return response;
+  }
+
+  @Get('autocomplete')
+  async autocomplete(@Query() queryUserDto: QueryUserDto) {
+    return this.usersService.findManyByEmail(queryUserDto);
   }
 
   @Get(':email')
@@ -32,7 +38,6 @@ export class UsersController {
     return this.usersService.updateUser(id, body);
   }
 
-  // Delete user
   @Delete(':id')
   async deleteUser(@Param('id') id: string) {
     return this.usersService.deleteUser(id);

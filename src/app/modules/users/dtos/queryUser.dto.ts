@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID } from 'class-validator';
+import { IsOptional, IsUUID } from 'class-validator';
 import { Role } from 'src/database/entities/userworkspace.entity';
 
 export class QueryUserDto {
@@ -30,7 +30,8 @@ export class QueryUserDto {
 
   @ApiProperty({ description: 'ID del Workspace al que pertenece el tablero', format: 'uuid' })
   @IsUUID()
-  workspaceId: string;
+  @IsOptional()
+  workspaceId?: string;
 
   @ApiProperty({
     description: 'Número de la página a solicitar. Debe ser >= 1.',

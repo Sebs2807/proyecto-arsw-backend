@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { UserEntity } from '../../../database/entities/user.entity';
 import type { RequestWithUser } from '../auth/auth.controller';
 import { QueryBoardDto } from './dtos/queryBoard.dto';
-import { CreateBoardDto } from './dtos/CreateBoard.dto';
+import { CreateBoardDto } from './dtos/createBoard.dto';
 
 @Controller({ path: 'boards', version: '1' })
 @UseGuards(JwtAuthGuard)
@@ -39,6 +39,7 @@ export class BoardsController {
   @Get('paginated')
   async findPaginated(@Query() queryBoardDto: QueryBoardDto, @Req() req: RequestWithUser) {
     const user = req.user;
+    console.log('dto:', queryBoardDto);
     return this.boardsService.findAll(queryBoardDto, user.id);
   }
 

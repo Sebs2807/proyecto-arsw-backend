@@ -37,7 +37,7 @@ export class BoardsService {
       createdBy: { id: creatorId },
       members: validMemberEntities,
       workspace: { id: workspaceId },
-      color: color || '#FFFFFF',
+      color: color || '#2E2E5C',
     });
 
     return this.boardsDbService.repository.save(board);
@@ -67,6 +67,8 @@ export class BoardsService {
       const [boards, total] = await query.getManyAndCount();
 
       const boardsDTO = plainToInstance(BoardDto, boards, { excludeExtraneousValues: true });
+
+      console.log(boardsDTO);
 
       this.logger.log(`Fetched ${boards.length} boards (page ${page}/${Math.ceil(total / limit)})`);
 
