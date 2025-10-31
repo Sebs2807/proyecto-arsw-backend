@@ -6,10 +6,11 @@ import { ListEntity } from '../../../database/entities/list.entity';
 import { CardEntity } from '../../../database/entities/card.entity';
 import { ListService } from './lists.service';
 import { ListController } from './lists.controller';
+import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ListEntity])],
-  providers: [ListService],
+  providers: [ListService, RealtimeGateway],
   controllers: [ListController],
   exports: [ListService],
 })
