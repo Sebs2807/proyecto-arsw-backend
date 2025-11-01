@@ -3,8 +3,7 @@ name: SonarCloud Full Analysis
 on:
   push:
     branches:
-      - prod
-      - dev
+      - main
       - prod
       - dev
       - 'feature/*'
@@ -52,15 +51,19 @@ jobs:
         if: always()
         run: |
           echo "Corrigiendo rutas de Windows en coverage/lcov.info..."
-          sed -i 's|\\|/|g' coverage/lcov.info
-          head -20 coverage/lcov.info
+          if [ -f coverage/lcov.info ]; then
+            sed -i 's|\\|/|g' coverage/lcov.info
+            head -20 coverage/lcov.info
+          else
+            echo "⚠️  No se encontró coverage/lcov.info, omitiendo corrección."
+          fi
 
       - name: SonarCloud Scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "Running SonarCloud analysis..."
+          echo "🚀 Ejecutando análisis SonarCloud..."
           npx sonar-scanner \
             -Dsonar.projectKey=Sebs2807_proyecto-arsw-backend \
             -Dsonar.organization=sebs2807 \
@@ -68,17 +71,7 @@ jobs:
             -Dsonar.sources=src \
             -Dsonar.tests=src \
             -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
-            -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-            -Dsonar.verbose=true
-          echo "Running SonarCloud analysis..."
-          npx sonar-scanner \
-            -Dsonar.projectKey=Sebs2807_proyecto-arsw-backend \
-            -Dsonar.organization=sebs2807 \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.sources=src \
-            -Dsonar.tests=src \
-            -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
-            -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**" \
+            -Dsonar.exclusions="src/main.ts" \
+            -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**,src/main.ts" \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.verbose=true
