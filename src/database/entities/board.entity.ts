@@ -7,9 +7,11 @@ import {
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
 import { WorkspaceEntity } from './workspace.entity';
+import { ListEntity } from './list.entity';
 
 @Entity('boards')
 export class BoardEntity {
@@ -22,10 +24,12 @@ export class BoardEntity {
   @Column({ nullable: true })
   description: string;
 
-  @ManyToOne(() => UserEntity, (user) => user.id)
+  @ManyToOne(() => UserEntity, (user) => user.id, { eager: true })
   createdBy: UserEntity;
 
-  @ManyToOne(() => WorkspaceEntity, (workpace) => workpace.id)
+  @ManyToOne(() => WorkspaceEntity, (workspace) => workspace.boards, {
+    onDelete: 'CASCADE',
+  })
   workspace: WorkspaceEntity;
 
   @ManyToMany(() => UserEntity, { eager: true })
@@ -33,6 +37,9 @@ export class BoardEntity {
     name: 'boards_members',
   })
   members: UserEntity[];
+
+  @OneToMany(() => ListEntity, (list) => list.board, { cascade: true })
+  lists: ListEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

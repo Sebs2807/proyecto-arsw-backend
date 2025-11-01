@@ -15,7 +15,7 @@ export class ListEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 100 })
+  @Column()
   title: string;
 
   @Column({ nullable: true })
@@ -23,12 +23,9 @@ export class ListEntity {
 
   @Column({ type: 'int', default: 0 })
   order: number;
-  
-  /**
-   * @ManyToOne(() => BoardEntity, (board) => board.id, { onDelete: 'CASCADE' })
-    board: BoardEntity;
-   */
-  
+
+  @ManyToOne(() => BoardEntity, (board) => board.lists, { onDelete: 'CASCADE' })
+  board: BoardEntity;
 
   @OneToMany(() => CardEntity, (card) => card.list, { cascade: true })
   cards: CardEntity[];

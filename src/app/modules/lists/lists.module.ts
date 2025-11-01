@@ -7,9 +7,10 @@ import { CardEntity } from '../../../database/entities/card.entity';
 import { ListService } from './lists.service';
 import { ListController } from './lists.controller';
 import { RealtimeGateway } from 'src/gateways/realtime.gateway';
+import { DatabaseModule } from 'src/database/database.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ListEntity])],
+  imports: [TypeOrmModule.forFeature([ListEntity]), DatabaseModule],
   providers: [ListService, RealtimeGateway],
   controllers: [ListController],
   exports: [ListService],

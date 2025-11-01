@@ -7,8 +7,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ListEntity } from './list.entity';
-import { UserEntity } from './user.entity';
-
 @Entity('cards')
 export class CardEntity {
   @PrimaryGeneratedColumn('uuid')
