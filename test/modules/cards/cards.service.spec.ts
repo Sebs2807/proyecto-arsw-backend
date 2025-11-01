@@ -1,140 +1,150 @@
-// import { NotFoundException } from '@nestjs/common';
-// import { CardService } from 'src/app/modules/cards/cards.service';
-// import { CardEntity } from '../../../src/database/entities/card.entity';
-// import { ListEntity } from '../../../src/database/entities/list.entity';
-// import { Repository } from 'typeorm';
+import { NotFoundException } from '@nestjs/common';
+import { CardService } from 'src/app/modules/cards/cards.service';
+import { CardEntity } from '../../../src/database/entities/card.entity';
+import { ListEntity } from '../../../src/database/entities/list.entity';
+import { Repository } from 'typeorm';
+import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 
-// describe('CardService', () => {
-//   let service: CardService;
-//   let cardRepository: jest.Mocked<Repository<CardEntity>>;
-//   let listRepository: jest.Mocked<Repository<ListEntity>>;
+describe('CardService', () => {
+  let service: CardService;
+  let cardRepository: jest.Mocked<Repository<CardEntity>>;
+  let listRepository: jest.Mocked<Repository<ListEntity>>;
+  let realtimeGateway: jest.Mocked<RealtimeGateway>;
 
-//   beforeEach(() => {
-//     cardRepository = {
-//       find: jest.fn(),
-//       findOne: jest.fn(),
-//       create: jest.fn(),
-//       save: jest.fn(),
-//       delete: jest.fn(),
-//     } as any;
+  beforeEach(() => {
+    cardRepository = {
+      find: jest.fn(),
+      findOne: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn(),
+    } as any;
 
-//     listRepository = {
-//       findOne: jest.fn(),
-//     } as any;
+    listRepository = {
+      findOne: jest.fn(),
+    } as any;
 
-//     service = new CardService(cardRepository, listRepository);
-//   });
+    realtimeGateway = {
+      emitGlobalUpdate: jest.fn(),
+    } as any;
 
-//   it('debería retornar todas las tarjetas con sus listas', async () => {
-//     const cards = [{ id: '1', title: 'Tarea 1' }] as CardEntity[];
-//     cardRepository.find.mockResolvedValue(cards);
+    service = new CardService(cardRepository, listRepository, realtimeGateway);
+  });
 
-//     const result = await service.findAll();
+  it('debería retornar todas las tarjetas con sus listas', async () => {
+    const cards = [{ id: '1', title: 'Tarea 1' }] as CardEntity[];
+    cardRepository.find.mockResolvedValue(cards);
 
-//     expect(cardRepository.find).toHaveBeenCalledWith({ relations: ['list'] });
-//     expect(result).toEqual(cards);
-//   });
+    const result = await service.findAll();
 
-//   it('debería retornar una tarjeta por id', async () => {
-//     const card = { id: '1', title: 'Tarea 1' } as CardEntity;
-//     cardRepository.findOne.mockResolvedValue(card);
+    expect(cardRepository.find).toHaveBeenCalledWith({ relations: ['list'] });
+    expect(result).toEqual(cards);
+  });
 
-//     const result = await service.findOne('1');
+  it('debería retornar una tarjeta por id', async () => {
+    const card = { id: '1', title: 'Tarea 1' } as CardEntity;
+    cardRepository.findOne.mockResolvedValue(card);
 
-//     expect(cardRepository.findOne).toHaveBeenCalledWith({
-//       where: { id: '1' },
-//       relations: ['list'],
-//     });
-//     expect(result).toBe(card);
-//   });
+    const result = await service.findOne('1');
 
-//   it('debería lanzar NotFoundException si la tarjeta no existe', async () => {
-//     cardRepository.findOne.mockResolvedValue(null);
+    expect(cardRepository.findOne).toHaveBeenCalledWith({
+      where: { id: '1' },
+      relations: ['list'],
+    });
+    expect(result).toBe(card);
+  });
 
-//     await expect(service.findOne('99')).rejects.toThrow(NotFoundException);
-//   });
+  it('debería lanzar NotFoundException si la tarjeta no existe', async () => {
+    cardRepository.findOne.mockResolvedValue(null);
 
-//   it('debería crear una tarjeta correctamente', async () => {
-//     const list = { id: '1', name: 'Lista 1' } as ListEntity;
-//     const cardData = { title: 'Nueva tarjeta' } as Partial<CardEntity>;
-//     const savedCard = { id: '123', title: 'Nueva tarjeta', list } as CardEntity;
+    await expect(service.findOne('99')).rejects.toThrow(NotFoundException);
+  });
 
-//     listRepository.findOne.mockResolvedValue(list);
-//     cardRepository.create.mockReturnValue(savedCard);
-//     cardRepository.save.mockResolvedValue(savedCard);
+  it('debería crear una tarjeta correctamente', async () => {
+    const list = { id: '1', name: 'Lista 1' } as unknown as ListEntity;
+    const cardData = { title: 'Nueva tarjeta' } as Partial<CardEntity>;
+    const savedCard = { id: '123', title: 'Nueva tarjeta', list } as CardEntity;
 
-//     const result = await service.create(cardData, '1');
+    listRepository.findOne.mockResolvedValue(list);
+    cardRepository.create.mockReturnValue(savedCard);
+    cardRepository.save.mockResolvedValue(savedCard);
 
-//     expect(listRepository.findOne).toHaveBeenCalledWith({ where: { id: '1' } });
-//     expect(cardRepository.create).toHaveBeenCalledWith({ ...cardData, list });
-//     expect(cardRepository.save).toHaveBeenCalledWith(savedCard);
-//     expect(result).toBe(savedCard);
-//   });
+    const result = await service.create(cardData, '1');
 
-//   // ❌ create - lista no encontrada
-//   it('debería lanzar NotFoundException si la lista no existe al crear', async () => {
-//     listRepository.findOne.mockResolvedValue(null);
+    expect(listRepository.findOne).toHaveBeenCalledWith({ where: { id: '1' } });
+    expect(cardRepository.create).toHaveBeenCalledWith({ ...cardData, list });
+    expect(cardRepository.save).toHaveBeenCalledWith(savedCard);
+    expect(realtimeGateway.emitGlobalUpdate).toHaveBeenCalledWith('card:created', { listId: '1', card: savedCard });
+    expect(result).toBe(savedCard);
+  });
 
-//     await expect(service.create({}, '99')).rejects.toThrow(NotFoundException);
-//   });
+  it('debería lanzar NotFoundException si la lista no existe al crear', async () => {
+    listRepository.findOne.mockResolvedValue(null);
 
-//   it('debería actualizar una tarjeta correctamente', async () => {
-//     const list = { id: '1', name: 'Lista 1' } as ListEntity;
-//     const card = { id: '123', title: 'Vieja', list } as CardEntity;
-//     const updatedCard = { ...card, title: 'Nueva' } as CardEntity;
+    await expect(service.create({}, '99')).rejects.toThrow(NotFoundException);
+  });
 
-//     cardRepository.findOne.mockResolvedValue(card);
-//     cardRepository.save.mockResolvedValue(updatedCard);
+  it('debería actualizar una tarjeta correctamente', async () => {
+    const list = { id: '1', name: 'Lista 1' } as unknown as ListEntity;
+    const card = { id: '123', title: 'Vieja', list } as CardEntity;
+    const updatedCard = { ...card, title: 'Nueva' } as CardEntity;
 
-//     const result = await service.update('123', { title: 'Nueva' });
+    cardRepository.findOne.mockResolvedValue(card);
+    cardRepository.save.mockResolvedValue(updatedCard);
 
-//     expect(cardRepository.findOne).toHaveBeenCalledWith({
-//       where: { id: '123' },
-//       relations: ['list'],
-//     });
-//     expect(result.title).toBe('Nueva');
-//   });
+    const result = await service.update('123', { title: 'Nueva' });
 
-//   it('debería lanzar NotFoundException si la tarjeta no existe al actualizar', async () => {
-//     cardRepository.findOne.mockResolvedValue(null);
+    expect(cardRepository.findOne).toHaveBeenCalledWith({
+      where: { id: '123' },
+      relations: ['list'],
+    });
+    expect(realtimeGateway.emitGlobalUpdate).toHaveBeenCalledWith('card:moved', expect.any(Object));
+    expect(result.title).toBe('Nueva');
+  });
 
-//     await expect(service.update('99', {})).rejects.toThrow(NotFoundException);
-//   });
+  it('debería lanzar NotFoundException si la tarjeta no existe al actualizar', async () => {
+    cardRepository.findOne.mockResolvedValue(null);
 
-//   it('debería actualizar la lista asociada de una tarjeta', async () => {
-//     const oldList = { id: '1', name: 'Antigua' } as ListEntity;
-//     const newList = { id: '2', name: 'Nueva' } as ListEntity;
-//     const card = { id: '123', title: 'Card', list: oldList } as CardEntity;
+    await expect(service.update('99', {})).rejects.toThrow(NotFoundException);
+  });
 
-//     cardRepository.findOne.mockResolvedValue(card);
-//     listRepository.findOne.mockResolvedValue(newList);
-//     cardRepository.save.mockResolvedValue({ ...card, list: newList });
+  it('debería actualizar la lista asociada de una tarjeta', async () => {
+    const oldList = { id: '1', name: 'Antigua' } as unknown as ListEntity;
+    const newList = { id: '2', name: 'Nueva' } as unknown as ListEntity;
+    const card = { id: '123', title: 'Card', list: oldList } as CardEntity;
 
-//     const result = await service.update('123', { listId: '2' } as any);
+    cardRepository.findOne.mockResolvedValue(card);
+    listRepository.findOne.mockResolvedValue(newList);
+    cardRepository.save.mockResolvedValue({ ...card, list: newList });
 
-//     expect(listRepository.findOne).toHaveBeenCalledWith({ where: { id: '2' } });
-//     expect(result.list).toEqual(newList);
-//   });
+    const result = await service.update('123', { listId: '2' } as any);
 
-//   it('debería lanzar NotFoundException si la nueva lista no existe', async () => {
-//     const card = { id: '123', title: 'Card' } as CardEntity;
-//     cardRepository.findOne.mockResolvedValue(card);
-//     listRepository.findOne.mockResolvedValue(null);
+    expect(listRepository.findOne).toHaveBeenCalledWith({ where: { id: '2' } });
+    expect(result.list).toEqual(newList);
+  });
 
-//     await expect(service.update('123', { listId: '99' } as any)).rejects.toThrow(NotFoundException);
-//   });
+  it('debería lanzar NotFoundException si la nueva lista no existe', async () => {
+    const card = { id: '123', title: 'Card' } as CardEntity;
+    cardRepository.findOne.mockResolvedValue(card);
+    listRepository.findOne.mockResolvedValue(null);
 
-//   it('debería eliminar una tarjeta correctamente', async () => {
-//     cardRepository.delete.mockResolvedValue({ affected: 1 } as any);
+    await expect(service.update('123', { listId: '99' } as any)).rejects.toThrow(NotFoundException);
+  });
 
-//     await service.delete('123');
+  it('debería eliminar una tarjeta correctamente', async () => {
+    const list = { id: '1', name: 'Lista 1' } as unknown as ListEntity;
+    const card = { id: '123', title: 'Card', list } as CardEntity;
+    cardRepository.findOne.mockResolvedValue(card);
+    cardRepository.delete.mockResolvedValue({ affected: 1 } as any);
 
-//     expect(cardRepository.delete).toHaveBeenCalledWith('123');
-//   });
+    await service.delete('123');
 
-//   it('debería lanzar NotFoundException si la tarjeta no existe al eliminar', async () => {
-//     cardRepository.delete.mockResolvedValue({ affected: 0 } as any);
+    expect(cardRepository.delete).toHaveBeenCalledWith('123');
+    expect(realtimeGateway.emitGlobalUpdate).toHaveBeenCalledWith('card:deleted', { listId: '1', cardId: '123' });
+  });
 
-//     await expect(service.delete('999')).rejects.toThrow(NotFoundException);
-//   });
-// });
+  it('debería lanzar NotFoundException si la tarjeta no existe al eliminar', async () => {
+    cardRepository.findOne.mockResolvedValue(null);
+    await expect(service.delete('999')).rejects.toThrow(NotFoundException);
+  });
+});

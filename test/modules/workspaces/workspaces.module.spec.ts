@@ -1,53 +1,39 @@
-// import { Test } from '@nestjs/testing';
-// import { WorkspacesModule } from '../../../src/app/modules/workspaces/workspaces.module';
-// import { WorkspacesService } from '../../../src/app/modules/workspaces/workspaces.service';
-// import { WorkspacesController } from '../../../src/app/modules/workspaces/workspaces.controller';
-// import { WorkspaceDBService } from '../../../src/database/dbservices/workspace.dbservice';
-// import { getRepositoryToken } from '@nestjs/typeorm';
-// import { WorkspaceEntity } from '../../../src/database/entities/workspace.entity';
-// import { ListEntity } from '../../../src/database/entities/list.entity';
-// import { CardEntity } from '../../../src/database/entities/card.entity';
-// import { UserEntity } from '../../../src/database/entities/user.entity';
-// import { UserWorkspaceEntity } from '../../../src/database/entities/userworkspace.entity';
+import { Test, TestingModule } from '@nestjs/testing';
+import { WorkspacesController } from 'src/app/modules/workspaces/workspaces.controller';
+import { WorkspacesService } from 'src/app/modules/workspaces/workspaces.service';
+import { WorkspaceEntity } from 'src/database/entities/workspace.entity';
+import { getRepositoryToken } from '@nestjs/typeorm';
 
-// describe('WorkspacesModule', () => {
-//   it('debería compilar el módulo correctamente', async () => {
-//     const mockWorkspaceRepo = {};
-//     const mockListRepo = {};
-//     const mockCardRepo = {};
-//     const mockUserRepo = {};
-//     const mockUserWorkspaceRepo = {};
+describe('WorkspacesModule', () => {
+  let moduleRef: TestingModule;
 
-//     // 🔹 Mock del servicio de base de datos
-//     const mockDBService = {
-//       repository: mockWorkspaceRepo,
-//       getWorkspacesByUserId: jest.fn(),
-//       createWorkspace: jest.fn(),
-//     };
+  beforeAll(async () => {
+    const mockWorkspaceRepo = {};
+    const mockService = {
+      findAll: jest.fn(),
+      create: jest.fn(),
+    };
 
-//     // 🔹 Creamos el módulo de prueba
-//     const moduleRef = await Test.createTestingModule({
-//       imports: [WorkspacesModule],
-//     })
-//       .overrideProvider(getRepositoryToken(WorkspaceEntity))
-//       .useValue(mockWorkspaceRepo)
-//       .overrideProvider(getRepositoryToken(ListEntity))
-//       .useValue(mockListRepo)
-//       .overrideProvider(getRepositoryToken(CardEntity))
-//       .useValue(mockCardRepo)
-//       .overrideProvider(getRepositoryToken(UserEntity))
-//       .useValue(mockUserRepo)
-//       .overrideProvider(getRepositoryToken(UserWorkspaceEntity))
-//       .useValue(mockUserWorkspaceRepo)
-//       .overrideProvider(WorkspaceDBService)
-//       .useValue(mockDBService)
-//       .compile();
+    moduleRef = await Test.createTestingModule({
+      controllers: [WorkspacesController],
+      providers: [
+        {
+          provide: WorkspacesService,
+          useValue: mockService,
+        },
+        {
+          provide: getRepositoryToken(WorkspaceEntity),
+          useValue: mockWorkspaceRepo,
+        },
+      ],
+    }).compile();
+  });
 
-//     const controller = moduleRef.get(WorkspacesController);
-//     const service = moduleRef.get(WorkspacesService);
+  it('debería compilar el módulo correctamente', async () => {
+    const controller = moduleRef.get(WorkspacesController);
+    const service = moduleRef.get(WorkspacesService);
 
-//     expect(moduleRef).toBeDefined();
-//     expect(controller).toBeInstanceOf(WorkspacesController);
-//     expect(service).toBeInstanceOf(WorkspacesService);
-//   });
-// });
+    expect(controller).toBeInstanceOf(WorkspacesController);
+    expect(service).toBeDefined();
+  });
+});
