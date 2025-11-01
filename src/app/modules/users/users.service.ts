@@ -90,12 +90,14 @@ export class UsersService {
     }
   }
 
-  async findManyByEmail(queryUser: QueryUserDto) {
+  async findManyByEmail(queryUser: QueryUserDto & { excludeWorkspaceMembers?: boolean }) {
     try {
+      console.log(queryUser);
       const page = Number(queryUser.page) || 1;
       const limit = Number(queryUser.limit) || 10;
       const search = queryUser.search || '';
       const workspaceId = queryUser.workspaceId;
+      const excludeWorkspaceMembers = queryUser.excludeWorkspaceMembers ?? true;
 
       const skip = (page - 1) * limit;
 
@@ -119,14 +121,28 @@ export class UsersService {
       }
 
       if (workspaceId) {
-        queryBuilder.andWhere(
-          `user.id NOT IN (
-          SELECT uw.userId
-          FROM user_workspace uw
-          WHERE uw.workspaceId = :workspaceId
-        )`,
-          { workspaceId },
-        );
+        console.log('holaaaa');
+        if (excludeWorkspaceMembers) {
+          console.log('holaaaaaa');
+          queryBuilder.andWhere(
+            `user.id NOT IN (
+            SELECT uw.userId
+            FROM user_workspace uw
+            WHERE uw.workspaceId = :workspaceId
+          )`,
+            { workspaceId },
+          );
+        } else {
+          console.log('hopla');
+          queryBuilder.andWhere(
+            `user.id IN (
+            SELECT uw.userId
+            FROM user_workspace uw
+            WHERE uw.workspaceId = :workspaceId
+          )`,
+            { workspaceId },
+          );
+        }
       }
 
       const total = await queryBuilder.getCount();
@@ -140,9 +156,13 @@ export class UsersService {
       });
 
       this.logger.log(
-        `Fetched ${transformedData.length} users (page ${page}/${Math.ceil(
-          total / limit,
-        )}) ${workspaceId ? `excluding workspace ${workspaceId}` : ''}`,
+        `Fetched ${transformedData.length} users (page ${page}/${Math.ceil(total / limit)}) ${
+          workspaceId
+            ? excludeWorkspaceMembers
+              ? `excluding workspace ${workspaceId}`
+              : `only workspace ${workspaceId}`
+            : ''
+        }`,
       );
 
       return {

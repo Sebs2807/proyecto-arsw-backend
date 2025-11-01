@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
-import { VersioningType } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import * as fs from 'node:fs';
 import 'reflect-metadata';
@@ -35,13 +35,17 @@ export async function bootstrap() {
     credentials: true,
   });
 
-  // Interceptor global para respuestas
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
+
   app.useGlobalInterceptors(new ResponseInterceptor());
 
-  // Filtro global para errores
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  //await app.listen(process.env.PORT ?? 3000);
   await app.listen(3000);
 }
 void bootstrap();
