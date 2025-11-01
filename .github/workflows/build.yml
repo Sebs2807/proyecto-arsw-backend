@@ -3,9 +3,9 @@ name: SonarCloud Full Analysis
 on:
   push:
     branches:
-      - main
       - prod
       - dev
+      - main
       - 'feature/*'
   pull_request:
     types: [opened, synchronize, reopened]
@@ -45,17 +45,22 @@ jobs:
         run: npm run build --if-present
 
       - name: Run tests and generate coverage
-        run: npm run test:cov --if-present
+        run: |
+          echo "🧪 Ejecutando pruebas con cobertura..."
+          npm run test:cov --if-present
+          echo "📁 Archivos generados en coverage:"
+          ls -R coverage || echo "⚠️ No existe carpeta coverage"
 
       - name: Fix LCOV paths for SonarCloud
         if: always()
         run: |
-          echo "Corrigiendo rutas de Windows en coverage/lcov.info..."
+          echo "🧩 Corrigiendo rutas de Windows en coverage/lcov.info..."
           if [ -f coverage/lcov.info ]; then
             sed -i 's|\\|/|g' coverage/lcov.info
+            echo "✅ Primeras líneas de coverage/lcov.info:"
             head -20 coverage/lcov.info
           else
-            echo "⚠️  No se encontró coverage/lcov.info, omitiendo corrección."
+            echo "⚠️ No se encontró coverage/lcov.info, omitiendo corrección."
           fi
 
       - name: SonarCloud Scan
@@ -73,5 +78,5 @@ jobs:
             -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
             -Dsonar.exclusions="src/main.ts" \
             -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/dist/**,src/main.ts" \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.javascript.lcov.reportPaths=./coverage/lcov.info \
             -Dsonar.verbose=true
