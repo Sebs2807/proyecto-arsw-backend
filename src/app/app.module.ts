@@ -18,6 +18,7 @@ import { UserWorkspaceEntity } from 'src/database/entities/userworkspace.entity'
 import { WorkspaceEntity } from 'src/database/entities/workspace.entity';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspaces.module';
+import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 
 @Module({
   imports: [
@@ -63,5 +64,6 @@ import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspace
     WorkspacesModule,
     UsersWorkspacesModule,
   ],
+  providers: [RealtimeGateway],
 })
 export class AppModule {}

@@ -1,47 +1,84 @@
-// import { validate } from 'class-validator';
-// import { UserDto } from 'src/app/modules/users/dtos/user.dto';
+// test/modules/users/dtos/user.dto.spec.ts
 
-// describe('UserDto', () => {
-//   it('debería ser válido con datos correctos', async () => {
-//     const user = new UserDto();
-//     user.firstName = 'John';
-//     user.lastName = 'Doe';
-//     user.email = 'john.doe@example.com';
-//     user.picture = 'https://example.com/avatar.jpg';
-//     user.JWTRefreshToken = 'token123';
+import { plainToInstance, instanceToPlain } from 'class-transformer';
+import { UserDto } from 'src/app/modules/users/dtos/user.dto';
 
-//     const errors = await validate(user);
-//     expect(errors.length).toBe(0);
-//   });
+describe('UserDto', () => {
+  it('debería crear una instancia correctamente', () => {
+    const user = new UserDto();
+    user.id = 'a1b2c3';
+    user.firstName = 'John';
+    user.lastName = 'Doe';
+    user.email = 'john.doe@example.com';
+    user.picture = 'https://example.com/avatar.jpg';
+    user.role = 'ADMIN';
+    user.createdAt = new Date();
+    user.updatedAt = new Date();
 
-//   it('debería fallar si el email no es válido', async () => {
-//     const user = new UserDto();
-//     user.firstName = 'John';
-//     user.lastName = 'Doe';
-//     user.email = 'correo-no-valido';
+    expect(user).toBeInstanceOf(UserDto);
+    expect(user.firstName).toBe('John');
+    expect(user.lastName).toBe('Doe');
+    expect(user.email).toBe('john.doe@example.com');
+  });
 
-//     const errors = await validate(user);
-//     expect(errors.length).toBeGreaterThan(0);
-//     expect(errors[0].property).toBe('email');
-//   });
+  it('debería permitir que picture y JWTRefreshToken sean opcionales', () => {
+    const user = new UserDto();
+    user.id = '123';
+    user.firstName = 'Jane';
+    user.lastName = 'Smith';
+    user.email = 'jane@example.com';
+    user.role = 'USER';
+    user.createdAt = new Date();
+    user.updatedAt = new Date();
 
-//   it('debería permitir que picture y JWTRefreshToken sean opcionales', async () => {
-//     const user = new UserDto();
-//     user.firstName = 'Jane';
-//     user.lastName = 'Smith';
-//     user.email = 'jane@example.com';
+    expect(user.picture).toBeUndefined();
+    expect(user.JWTRefreshToken).toBeUndefined();
+  });
 
-//     const errors = await validate(user);
-//     expect(errors.length).toBe(0);
-//   });
+  it('debería exponer solo las propiedades marcadas con @Expose()', () => {
+    const user = plainToInstance(UserDto, {
+      id: '1',
+      firstName: 'Ana',
+      lastName: 'Pérez',
+      email: 'ana@example.com',
+      picture: 'https://cdn.img',
+      role: 'ADMIN',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      googleRefreshToken: 'secret1',
+      JWTRefreshToken: 'secret2',
+    });
 
-//   it('debería fallar si falta un campo obligatorio', async () => {
-//     const user = new UserDto();
-//     user.email = 'john@example.com';
+    const plain = instanceToPlain(user);
 
-//     const errors = await validate(user);
-//     const fieldsWithErrors = errors.map((e) => e.property);
-//     expect(fieldsWithErrors).toContain('firstName');
-//     expect(fieldsWithErrors).toContain('lastName');
-//   });
-// });
+    expect(plain).toHaveProperty('id');
+    expect(plain).toHaveProperty('firstName');
+    expect(plain).toHaveProperty('lastName');
+    expect(plain).toHaveProperty('email');
+    expect(plain).toHaveProperty('role');
+    expect(plain).toHaveProperty('createdAt');
+    expect(plain).toHaveProperty('updatedAt');
+
+    expect(plain).not.toHaveProperty('googleRefreshToken');
+    expect(plain).not.toHaveProperty('JWTRefreshToken');
+  });
+
+  it('debería transformar correctamente desde un objeto plano', () => {
+    const plainUser = {
+      id: 'abc123',
+      firstName: 'Carlos',
+      lastName: 'Gómez',
+      email: 'carlos@example.com',
+      role: 'USER',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const user = plainToInstance(UserDto, plainUser);
+
+    expect(user).toBeInstanceOf(UserDto);
+    expect(user.firstName).toBe('Carlos');
+    expect(user.email).toBe('carlos@example.com');
+    expect(user.role).toBe('USER');
+  });
+});
