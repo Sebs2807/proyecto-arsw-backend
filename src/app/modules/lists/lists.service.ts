@@ -58,7 +58,6 @@ export class ListService {
     }
   }
 
-  // --- CREAR LISTA ---
   async create(createListDto: CreateListDto): Promise<ListDto> {
     try {
       const board = await this.boardsDbService.repository.findOne({
@@ -77,7 +76,7 @@ export class ListService {
       const savedList = await this.listDbService.repository.save(list);
       const listDto = plainToInstance(ListDto, savedList, { excludeExtraneousValues: true });
 
-      this.realtimeGateway.emitGlobalUpdate('list:created', {
+      this.realtimeGateway.emitToBoard(board.id,'list:created', {
         ...listDto,
         board: { id: board.id },
       });
@@ -89,7 +88,6 @@ export class ListService {
     }
   }
 
-  // --- ACTUALIZAR LISTA ---
   async update(id: string, updateListDto: UpdateListDto): Promise<ListDto> {
     try {
       const list = await this.listDbService.repository.findOne({ where: { id } });
@@ -101,7 +99,7 @@ export class ListService {
       const updatedList = await this.listDbService.repository.save(list);
       const listDto = plainToInstance(ListDto, updatedList, { excludeExtraneousValues: true });
 
-      this.realtimeGateway.emitGlobalUpdate('list:updated', listDto);
+      this.realtimeGateway.emitToBoard(list.board.id, 'list:updated', listDto);
 
       return listDto;
     } catch (error) {
@@ -110,13 +108,19 @@ export class ListService {
     }
   }
 
-  // --- ELIMINAR LISTA ---
   async delete(id: string): Promise<void> {
     try {
+      const list = await this.listDbService.repository.findOne({
+        where: { id },
+        relations: ['board'],
+      });
+
+      if (!list) throw new NotFoundException(`List with ID ${id} not found`);
+
       const result = await this.listDbService.repository.delete(id);
       if (result.affected === 0) throw new NotFoundException(`List with ID ${id} not found`);
 
-      this.realtimeGateway.emitGlobalUpdate('list:deleted', { id });
+      this.realtimeGateway.emitToBoard(list.board.id, 'list:deleted', { id });
     } catch (error) {
       this.logger.error(`Error deleting list ${id}: ${error.message}`);
       throw new InternalServerErrorException('Failed to delete list');
