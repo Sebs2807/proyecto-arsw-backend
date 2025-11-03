@@ -7,7 +7,7 @@ describe('ListController', () => {
   let controller: ListController;
   let service: ListService;
 
-  const mockList: ListEntity = {
+  const mockList: any = {
     id: '1',
     title: 'Test List',
     description: 'Desc',
@@ -15,7 +15,7 @@ describe('ListController', () => {
     cards: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as ListEntity;
+  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -24,7 +24,7 @@ describe('ListController', () => {
         {
           provide: ListService,
           useValue: {
-            findAll: jest.fn(),
+            findAllByBoard: jest.fn(),
             findOne: jest.fn(),
             create: jest.fn(),
             update: jest.fn(),
@@ -39,24 +39,24 @@ describe('ListController', () => {
   });
 
   it('should find all lists', async () => {
-    jest.spyOn(service, 'findAll').mockResolvedValue([mockList]);
-    expect(await controller.findAll()).toEqual([mockList]);
+    jest.spyOn(service, 'findAllByBoard' as any).mockResolvedValue([mockList] as any);
+    expect(await controller.findAllByBoard('1')).toEqual([mockList]);
   });
 
   it('should find one list', async () => {
-    jest.spyOn(service, 'findOne').mockResolvedValue(mockList);
+    jest.spyOn(service, 'findOne' as any).mockResolvedValue(mockList as any);
     expect(await controller.findOne('1')).toEqual(mockList);
   });
 
   it('should create a list', async () => {
-    jest.spyOn(service, 'create').mockResolvedValue(mockList);
-    expect(await controller.create({ title: 'Test List' })).toEqual(mockList);
+    jest.spyOn(service, 'create' as any).mockResolvedValue(mockList as any);
+    expect(await controller.create({ title: 'Test List', boardId: '1' } as any)).toEqual(mockList);
   });
 
   it('should update a list', async () => {
-    const updated = { ...mockList, title: 'Updated' };
-    jest.spyOn(service, 'update').mockResolvedValue(updated);
-    expect(await controller.update('1', { title: 'Updated' })).toEqual(updated);
+    const updated = { ...mockList, title: 'Updated' } as any;
+    jest.spyOn(service, 'update' as any).mockResolvedValue(updated as any);
+    expect(await controller.update('1', { title: 'Updated' } as any)).toEqual(updated);
   });
 
   it('should delete a list', async () => {

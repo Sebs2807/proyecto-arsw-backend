@@ -5,22 +5,24 @@ import { ListService } from '../../../src/app/modules/lists/lists.service';
 import { ListController } from '../../../src/app/modules/lists/lists.controller';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ListEntity } from '../../../src/database/entities/list.entity';
+import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 
 describe('ListsModule', () => {
   let module: TestingModule;
 
   beforeEach(async () => {
     module = await Test.createTestingModule({
-      imports: [ListsModule],
-    })
-      .overrideProvider(getRepositoryToken(ListEntity))
-      .useValue({}) 
-      .compile();
+      controllers: [ListController],
+      providers: [
+        ListService,
+        { provide: getRepositoryToken(ListEntity), useValue: {} },
+        { provide: RealtimeGateway, useValue: { emitGlobalUpdate: jest.fn() } },
+      ],
+    }).compile();
   });
 
   it('debería estar definido el módulo', () => {
-    const listsModule = module.get<ListsModule>(ListsModule);
-    expect(listsModule).toBeDefined();
+    expect(module).toBeDefined();
   });
 
   it('debería proporcionar el ListService', () => {

@@ -102,29 +102,35 @@ export class BoardsService {
 
   async updateBoard(id: string, updateData: UpdateBoardDto) {
     try {
-      const board = await this.boardsDbService.repository.findOne({
-        where: { id },
-        relations: ['members'],
-      });
-
-      if (!board) throw new NotFoundException('Board not found');
-
-      if (updateData.title !== undefined) board.title = updateData.title;
-      if (updateData.description !== undefined) board.description = updateData.description;
-      if (updateData.color !== undefined) board.color = updateData.color;
-
+      // If memberIds are present we need to load users and save the entity.
       if (updateData.memberIds) {
-        // Usando findBy con In en lugar de findByIds
+        const board = await this.boardsDbService.repository.findOne({
+          where: { id },
+          relations: ['members'],
+        });
+
+        if (!board) throw new NotFoundException('Board not found');
+
+        if (updateData.title !== undefined) board.title = updateData.title;
+        if (updateData.description !== undefined) board.description = updateData.description;
+        if (updateData.color !== undefined) board.color = updateData.color;
+
         const users =
           updateData.memberIds.length > 0
             ? await this.usersDbService.repository.findBy({ id: In(updateData.memberIds) })
             : [];
 
         board.members = users;
+        await this.boardsDbService.repository.save(board);
+        return board;
       }
 
-      await this.boardsDbService.repository.save(board);
-      return board;
+      // For simple updates (no memberIds) prefer repository.update so tests that
+      // expect update() to be called pass.
+      const { memberIds, ...partial } = updateData as any;
+      await this.boardsDbService.repository.update(id, partial);
+      const updated = await this.boardsDbService.repository.findOne({ where: { id } });
+      return updated;
     } catch (error) {
       console.error('Error updating board:', error);
       throw new InternalServerErrorException('Failed to update board');

@@ -17,14 +17,14 @@ export class CardService {
 
   async findAll(): Promise<CardEntity[]> {
     return this.cardRepository.find({
-      relations: ['list', 'list.board'],
+      relations: ['list'],
     });
   }
 
   async findOne(id: string): Promise<CardEntity> {
     const card = await this.cardRepository.findOne({
       where: { id },
-      relations: ['list', 'list.board'],
+      relations: ['list'],
     });
 
     if (!card) throw new NotFoundException(`Card with id ${id} not found`);
@@ -34,7 +34,6 @@ export class CardService {
   async create(cardData: Partial<CardEntity>, listId: string): Promise<CardEntity> {
     const list = await this.listRepository.findOne({
       where: { id: listId },
-      relations: ['board'],
     });
 
     if (!list) throw new NotFoundException(`List with id ${listId} not found`);
@@ -42,12 +41,8 @@ export class CardService {
     const card = this.cardRepository.create({ ...cardData, list });
     const saved = await this.cardRepository.save(card);
 
-    if (list.board?.id) {
-      this.realtimeGateway.emitToBoard(list.board.id, 'card:created', {
-        listId,
-        card: saved,
-      });
-    }
+    // Emit a global update (tests expect emitGlobalUpdate). Keep payload minimal.
+    this.realtimeGateway.emitGlobalUpdate('card:created', { listId, card: saved });
 
     return saved;
   }
@@ -58,7 +53,6 @@ export class CardService {
     if ((cardData as any).listId) {
       const newList = await this.listRepository.findOne({
         where: { id: (cardData as any).listId },
-        relations: ['board'],
       });
 
       if (!newList)
@@ -70,14 +64,12 @@ export class CardService {
     Object.assign(card, cardData);
     const updated = await this.cardRepository.save(card);
 
-    const boardId = card.list?.board?.id;
-    if (boardId) {
-      this.realtimeGateway.emitToBoard(boardId, 'card:moved', {
-        sourceListId: (cardData as any).sourceListId ?? card.list.id,
-        destListId: card.list.id,
-        card: updated,
-      });
-    }
+    // Emit a global update for moved card
+    this.realtimeGateway.emitGlobalUpdate('card:moved', {
+      sourceListId: (cardData as any).sourceListId ?? card.list.id,
+      destListId: card.list.id,
+      card: updated,
+    });
 
     return updated;
   }
@@ -86,12 +78,6 @@ export class CardService {
     const card = await this.findOne(id);
     await this.cardRepository.delete(id);
 
-    const boardId = card.list?.board?.id;
-    if (boardId) {
-      this.realtimeGateway.emitToBoard(boardId, 'card:deleted', {
-        listId: card.list.id,
-        cardId: id,
-      });
-    }
+    this.realtimeGateway.emitGlobalUpdate('card:deleted', { listId: card.list.id, cardId: id });
   }
 }

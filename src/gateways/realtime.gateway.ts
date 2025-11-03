@@ -24,6 +24,11 @@ export class RealtimeGateway {
     this.server.to(boardId).emit(event, payload);
   }
 
+  // Emit to all connected clients (global)
+  emitGlobalUpdate(event: string, payload: any) {
+    this.server.emit(event, payload);
+  }
+
   @SubscribeMessage('card:dragStart')
   handleDragStart(
     @MessageBody() data: { boardId: string; cardId: string; user: string },
