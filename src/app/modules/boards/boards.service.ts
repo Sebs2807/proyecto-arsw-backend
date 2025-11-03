@@ -1,4 +1,10 @@
-import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  Logger,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { BoardEntity } from '../../../database/entities/board.entity';
 import { BoardsDBService } from 'src/database/dbservices/boards.dbservice';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
@@ -6,6 +12,8 @@ import { UserEntity } from 'src/database/entities/user.entity';
 import { QueryBoardDto } from './dtos/queryBoard.dto';
 import { plainToInstance } from 'class-transformer';
 import { BoardDto } from './dtos/board.dto';
+import { UpdateBoardDto } from './dtos/updateBoard.dto';
+import { In } from 'typeorm';
 
 @Injectable()
 export class BoardsService {
@@ -23,6 +31,7 @@ export class BoardsService {
     workspaceId: string,
     color?: string,
   ): Promise<BoardEntity> {
+    console.log(membersIds);
     const memberEntitiesWithNulls = await Promise.all(
       membersIds.map((id) => this.usersDbService.findById(id)),
     );
@@ -30,6 +39,8 @@ export class BoardsService {
     const validMemberEntities = memberEntitiesWithNulls.filter(
       (member): member is UserEntity => member !== null,
     );
+
+    console.log(validMemberEntities);
 
     const board = this.boardsDbService.repository.create({
       title,
@@ -39,6 +50,8 @@ export class BoardsService {
       workspace: { id: workspaceId },
       color: color || '#2E2E5C',
     });
+
+    console.log(board);
 
     return this.boardsDbService.repository.save(board);
   }
@@ -87,9 +100,35 @@ export class BoardsService {
     return this.boardsDbService.repository.findOne({ where: { id } });
   }
 
-  async updateBoard(id: string, updateData: Partial<BoardEntity>) {
-    await this.boardsDbService.repository.update(id, updateData);
-    return this.findOne(id);
+  async updateBoard(id: string, updateData: UpdateBoardDto) {
+    try {
+      const board = await this.boardsDbService.repository.findOne({
+        where: { id },
+        relations: ['members'],
+      });
+
+      if (!board) throw new NotFoundException('Board not found');
+
+      if (updateData.title !== undefined) board.title = updateData.title;
+      if (updateData.description !== undefined) board.description = updateData.description;
+      if (updateData.color !== undefined) board.color = updateData.color;
+
+      if (updateData.memberIds) {
+        // Usando findBy con In en lugar de findByIds
+        const users =
+          updateData.memberIds.length > 0
+            ? await this.usersDbService.repository.findBy({ id: In(updateData.memberIds) })
+            : [];
+
+        board.members = users;
+      }
+
+      await this.boardsDbService.repository.save(board);
+      return board;
+    } catch (error) {
+      console.error('Error updating board:', error);
+      throw new InternalServerErrorException('Failed to update board');
+    }
   }
 
   async deleteBoard(id: string) {

@@ -19,9 +19,11 @@ import { WorkspaceEntity } from 'src/database/entities/workspace.entity';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspaces.module';
 import { RealtimeGateway } from 'src/gateways/realtime.gateway';
+import { LivekitModule } from 'src/livekit/livekit.module';
 
 @Module({
   imports: [
+    LivekitModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],

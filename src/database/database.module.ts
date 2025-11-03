@@ -11,6 +11,7 @@ import { WorkspaceDBService } from './dbservices/workspace.dbservice';
 import { UsersWorkspacesDBService } from './dbservices/usersworkspaces.dbservice';
 import { BoardsDBService } from './dbservices/boards.dbservice';
 import { BoardEntity } from './entities/board.entity';
+import { ListsDBService } from './dbservices/lists.dbservice';
 
 @Module({
   imports: [
@@ -23,7 +24,19 @@ import { BoardEntity } from './entities/board.entity';
       BoardEntity,
     ]),
   ],
-  providers: [UsersDBService, WorkspaceDBService, UsersWorkspacesDBService, BoardsDBService],
-  exports: [UsersDBService, WorkspaceDBService, UsersWorkspacesDBService, BoardsDBService],
+  providers: [
+    UsersDBService,
+    WorkspaceDBService,
+    UsersWorkspacesDBService,
+    BoardsDBService,
+    ListsDBService,
+  ],
+  exports: [
+    UsersDBService,
+    WorkspaceDBService,
+    UsersWorkspacesDBService,
+    BoardsDBService,
+    ListsDBService,
+  ],
 })
 export class DatabaseModule {}

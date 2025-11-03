@@ -17,6 +17,7 @@ import type { UserEntity } from '../../../database/entities/user.entity';
 import type { RequestWithUser } from '../auth/auth.controller';
 import { QueryBoardDto } from './dtos/queryBoard.dto';
 import { CreateBoardDto } from './dtos/createBoard.dto';
+import { UpdateBoardDto } from './dtos/updateBoard.dto';
 
 @Controller({ path: 'boards', version: '1' })
 @UseGuards(JwtAuthGuard)
@@ -48,7 +49,7 @@ export class BoardsController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() body: Partial<CreateBoardDto>) {
+  async update(@Param('id') id: string, @Body() body: UpdateBoardDto) {
     return this.boardsService.updateBoard(id, body);
   }
 
