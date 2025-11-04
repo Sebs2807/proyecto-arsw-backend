@@ -2,11 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ListService } from '../../../src/app/modules/lists/lists.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ListEntity } from '../../../src/database/entities/list.entity';
-import { Repository } from 'typeorm';
 import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 import { ListsDBService } from '../../../src/database/dbservices/lists.dbservice';
 import { BoardsDBService } from '../../../src/database/dbservices/boards.dbservice';
-import { UpdateResult, DeleteResult } from 'typeorm';
+import { DeleteResult } from 'typeorm';
 
 describe('ListService', () => {
   let service: ListService;
@@ -27,8 +26,6 @@ describe('ListService', () => {
   } as unknown as ListEntity;
 
   beforeEach(async () => {
-    // Provide ListsDBService and BoardsDBService with a repository mock so the
-    // service constructor resolves in the testing module.
     repository = {
       findOne: jest.fn(),
       create: jest.fn(),
@@ -140,4 +137,63 @@ describe('ListService', () => {
       expect(result).toEqual(mockLists);
     });
   });
+
+  // manejo de errores
+  describe('manejo de errores', () => {
+    it('debería lanzar InternalServerErrorException cuando board no existe en create', async () => {
+      mockBoardsDbService.repository.findOne.mockResolvedValueOnce(null);
+      await expect(service.create({ title: 'new', boardId: 'x' } as any)).rejects.toThrow(
+        'Failed to create list',
+      );
+    });
+
+    it('debería lanzar InternalServerErrorException cuando list no existe en findOne', async () => {
+      repository.findOne.mockResolvedValueOnce(null);
+      await expect(service.findOne('99')).rejects.toThrow('Failed to fetch list');
+    });
+
+    it('debería lanzar InternalServerErrorException cuando list no existe en update', async () => {
+      repository.findOne.mockResolvedValueOnce(null);
+      await expect(service.update('99', { title: 'x' } as any)).rejects.toThrow(
+        'Failed to update list',
+      );
+    });
+
+    it('debería lanzar InternalServerErrorException cuando list no existe en delete', async () => {
+      repository.findOne.mockResolvedValueOnce(null);
+      await expect(service.delete('404')).rejects.toThrow('Failed to delete list');
+    });
+
+    it('debería lanzar InternalServerErrorException cuando delete no afecta filas', async () => {
+      repository.findOne.mockResolvedValue(mockList);
+      repository.delete.mockResolvedValue({ affected: 0, raw: [] });
+      await expect(service.delete('1')).rejects.toThrow('Failed to delete list');
+    });
+  });
+
+describe('casos opcionales sin gateway ni repositorios', () => {
+  it('debería funcionar cuando no hay realtimeGateway (opcional)', async () => {
+    const module2 = await Test.createTestingModule({
+      providers: [
+        ListService,
+        { provide: ListsDBService, useValue: mockListsDbService },
+        { provide: BoardsDBService, useValue: mockBoardsDbService },
+        RealtimeGateway,
+      ],
+    })
+      .overrideProvider(RealtimeGateway)
+      .useValue({
+        emitGlobalUpdate: jest.fn(), 
+      })
+      .compile();
+
+    const service2 = module2.get<ListService>(ListService);
+    mockListsDbService.repository.create.mockReturnValue(mockList);
+    mockListsDbService.repository.save.mockResolvedValue(mockList);
+
+    const result = await service2.create({ title: 'Sin gateway', boardId: '1' } as any);
+    expect(result).toEqual(mockList);
+  });
+});
+
 });
