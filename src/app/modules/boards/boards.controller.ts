@@ -18,11 +18,15 @@ import type { RequestWithUser } from '../auth/auth.controller';
 import { QueryBoardDto } from './dtos/queryBoard.dto';
 import { CreateBoardDto } from './dtos/createBoard.dto';
 import { UpdateBoardDto } from './dtos/updateBoard.dto';
+import { RealtimeGateway } from '../../../gateways/realtime.gateway';
 
 @Controller({ path: 'boards', version: '1' })
 @UseGuards(JwtAuthGuard)
 export class BoardsController {
-  constructor(private readonly boardsService: BoardsService) {}
+  constructor(
+    private readonly boardsService: BoardsService,
+    private readonly realtimeGateway: RealtimeGateway,
+  ) {}
 
   @Post()
   async create(@Body() body: CreateBoardDto, @Req() req: RequestWithUser) {
@@ -50,7 +54,15 @@ export class BoardsController {
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: UpdateBoardDto) {
-    return this.boardsService.updateBoard(id, body);
+    const updated = await this.boardsService.updateBoard(id, body);
+    // Emit update event to all clients in the board room
+    try {
+      this.realtimeGateway.emitToBoard(id, 'board:updated', updated);
+    } catch (err) {
+      // don't fail the request if websocket emit fails
+      console.error('Realtime emit failed:', err);
+    }
+    return updated;
   }
 
   @Delete(':id')

@@ -110,6 +110,18 @@ export class AuthService {
           { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
         );
 
+        // If Google provided a refresh token, persist it for calendar access
+        if (googleRefreshToken) {
+          try {
+            await this.userDbService.repository.update(user.id, {
+              googleRefreshToken: googleRefreshToken,
+            });
+            this.logger.log(`Updated googleRefreshToken for user ${user.id}`);
+          } catch (err) {
+            this.logger.error('Failed to save google refresh token', err as Error);
+          }
+        }
+
         const refreshToken = await this.usersService.generateNewRefreshToken(user.id);
 
         return { accessToken, refreshToken };
