@@ -20,6 +20,7 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspaces.module';
 import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 import { LivekitModule } from 'src/livekit/livekit.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { LivekitModule } from 'src/livekit/livekit.module';
     CardModule,
     WorkspacesModule,
     UsersWorkspacesModule,
+    CalendarModule,
   ],
   providers: [RealtimeGateway],
 })
