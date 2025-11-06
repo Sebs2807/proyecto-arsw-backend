@@ -35,11 +35,8 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
-<<<<<<< HEAD
     "googleapis": "^164.1.0",
     "livekit-server-sdk": "^2.14.0",
-=======
->>>>>>> 58dd57e4e62c49e5b72a08df6db6acd68e960649
     "mysql2": "^3.15.1",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
