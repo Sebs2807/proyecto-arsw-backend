@@ -4,7 +4,11 @@ import { BoardsDBService } from 'src/database/dbservices/boards.dbservice';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { BoardEntity } from 'src/database/entities/board.entity';
 import { UserEntity } from 'src/database/entities/user.entity';
-import { ForbiddenException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 
 describe('BoardsService', () => {
   let service: BoardsService;
@@ -142,11 +146,50 @@ describe('BoardsService', () => {
   describe('updateBoard', () => {
     it('debe actualizar un board y retornarlo', async () => {
       mockRepository.update.mockResolvedValue({});
+
       const result = await service.updateBoard('1', { title: 'Updated' });
 
       expect(mockRepository.update).toHaveBeenCalledWith('1', { title: 'Updated' });
       expect(mockRepository.findOne).toHaveBeenCalledWith({ where: { id: '1' } });
       expect(result).toEqual(mockBoard);
+    });
+  });
+
+  describe('BoardsService - manejo de errores en updateBoard', () => {
+    it('debe lanzar InternalServerErrorException si update lanza error inesperado', async () => {
+      mockRepository.update.mockImplementationOnce(() => {
+        throw new Error('unexpected fail');
+      });
+
+      await expect(
+        service.updateBoard('1', { title: 'Crash test' }),
+      ).rejects.toThrow(InternalServerErrorException);
+    });
+
+    it('debe lanzar InternalServerErrorException si no se encuentra el board al actualizar con memberIds', async () => {
+      mockRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateBoard('1', { memberIds: ['1'] }),
+      ).rejects.toThrow(InternalServerErrorException);
+    });
+
+    it('debe lanzar InternalServerErrorException si el update del repositorio falla', async () => {
+      mockRepository.update.mockRejectedValueOnce(new Error('DB fail'));
+
+      await expect(
+        service.updateBoard('1', { title: 'fallo de base de datos' }),
+      ).rejects.toThrow(InternalServerErrorException);
+    });
+
+    it('debe manejar correctamente el caso de memberIds vacíos sin lanzar error', async () => {
+      const board = { id: '1', members: [] };
+      mockRepository.findOne.mockResolvedValue(board);
+      mockRepository.save = jest.fn().mockResolvedValue(board);
+
+      const result = await service.updateBoard('1', { memberIds: [] });
+      expect(result).toEqual(board);
+      expect(mockRepository.save).toHaveBeenCalled();
     });
   });
 
@@ -158,4 +201,3 @@ describe('BoardsService', () => {
     });
   });
 });
-
