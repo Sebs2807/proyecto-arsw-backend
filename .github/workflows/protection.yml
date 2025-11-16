@@ -5,7 +5,8 @@ on:
     types: [opened, reopened, edited, synchronize]
 
 jobs:
-  validate-branches:
+  gitflow-validation:
+    name: GitFlow Branch Rules
     runs-on: ubuntu-latest
 
     steps:
@@ -29,7 +30,7 @@ jobs:
             exit 0
           fi
 
-          echo "Pull Request inválido según Git-Flow"
+          echo "❌ Pull Request inválido según Git-Flow"
           echo "Solo se permiten:"
           echo "  - feature/* → develop"
           echo "  - develop → main"
