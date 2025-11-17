@@ -7,34 +7,42 @@ import { UserEntity } from 'src/database/entities/user.entity';
 import { Request } from 'express';
 import { QueryBoardDto } from 'src/app/modules/boards/dtos/queryBoard.dto';
 import { CreateBoardDto } from 'src/app/modules/boards/dtos/createBoard.dto';
+import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 
 describe('BoardsController', () => {
   let controller: BoardsController;
   let boardsService: jest.Mocked<BoardsService>;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [BoardsController],
-      providers: [
-        {
-          provide: BoardsService,
-          useValue: {
-            createBoard: jest.fn(),
-            findAll: jest.fn(),
-            findOne: jest.fn(),
-            updateBoard: jest.fn(),
-            deleteBoard: jest.fn(),
-          },
+beforeEach(async () => {
+  const module: TestingModule = await Test.createTestingModule({
+    controllers: [BoardsController],
+    providers: [
+      {
+        provide: BoardsService,
+        useValue: {
+          createBoard: jest.fn(),
+          findAll: jest.fn(),
+          findOne: jest.fn(),
+          updateBoard: jest.fn(),
+          deleteBoard: jest.fn(),
         },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
+      },
+      {
+        provide: RealtimeGateway,
+        useValue: {
+          emitToBoard: jest.fn(), 
+        },
+      },
+    ],
+  })
+    .overrideGuard(JwtAuthGuard)
+    .useValue({ canActivate: () => true })
+    .compile();
 
-    controller = module.get<BoardsController>(BoardsController);
-    boardsService = module.get(BoardsService);
-  });
+  controller = module.get<BoardsController>(BoardsController);
+  boardsService = module.get(BoardsService);
+});
+
 
   const mockUser = {
     id: '1',
