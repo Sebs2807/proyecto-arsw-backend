@@ -11,6 +11,7 @@ import { Test } from '@nestjs/testing';
 @Module({}) class MockCardModule {}
 @Module({}) class MockWorkspacesModule {}
 @Module({}) class MockUsersWorkspacesModule {}
+@Module({}) class MockCalendarModule {} 
 
 // --- Mock database entities ---
 jest.mock('../src/database/entities/user.entity', () => ({ UserEntity: class {} }));
@@ -33,7 +34,7 @@ jest.mock('@nestjs/typeorm', () => ({
   },
 }));
 
-// --- ✅ Mock fs and node:fs with existsSync + readFileSync ---
+// --- ✅ Mock fs and node:fs ---
 jest.mock('fs', () => ({
   readFileSync: jest.fn(() => 'FAKE_CA_PEM'),
   existsSync: jest.fn(() => true),
@@ -43,7 +44,6 @@ jest.mock('node:fs', () => ({
   existsSync: jest.fn(() => true),
 }));
 
-// --- Mock submodules ---
 jest.mock('../src/app/modules/auth/auth.module', () => ({ AuthModule: MockAuthModule }));
 jest.mock('../src/database/database.module', () => ({ DatabaseModule: MockDatabaseModule }));
 jest.mock('../src/app/modules/users/users.module', () => ({ UsersModule: MockUsersModule }));
@@ -52,8 +52,18 @@ jest.mock('../src/app/modules/lists/lists.module', () => ({ ListsModule: MockLis
 jest.mock('../src/app/modules/cards/cards.module', () => ({ CardModule: MockCardModule }));
 jest.mock('../src/app/modules/workspaces/workspaces.module', () => ({ WorkspacesModule: MockWorkspacesModule }));
 jest.mock('../src/app/modules/users-workspaces/usersworkspaces.module', () => ({ UsersWorkspacesModule: MockUsersWorkspacesModule }));
+jest.mock('../src/app/modules/calendar/calendar.module', () => ({ CalendarModule: MockCalendarModule })); // ✅ IMPORTANTE: este mock arriba del require(AppModule)
 jest.mock('../src/livekit/livekit.module', () => ({ LivekitModule: class {} }));
 jest.mock('../src/gateways/realtime.gateway', () => ({ RealtimeGateway: class {} }));
+
+jest.mock('googleapis', () => ({
+  google: {
+    auth: { OAuth2: jest.fn() },
+    calendar: jest.fn(() => ({
+      events: { insert: jest.fn(), list: jest.fn() },
+    })),
+  },
+}));
 
 // --- Require AppModule after mocks ---
 const { AppModule } = require('../src/app/app.module');
