@@ -3,10 +3,8 @@ name: SonarCloud Full Analysis
 on:
   push:
     branches:
-      - prod
-      - dev
-      - prod
-      - dev
+      - main
+      - develop
       - 'feature/*'
   pull_request:
     types: [opened, synchronize, reopened]
