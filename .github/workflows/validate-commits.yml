@@ -62,6 +62,8 @@ jobs:
 
       - name: Validate commit messages (PR only)
         if: ${{ github.event_name == 'pull_request' && steps.skip_commits.outputs.skip == 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Validando commits del PR..."
 
