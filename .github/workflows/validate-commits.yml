@@ -79,6 +79,10 @@ jobs:
           echo "$PR_COMMITS"
 
           while IFS= read -r line; do
+            if [[ "$line" =~ ^Merge\ .* ]]; then
+              echo "Merge commit permitido: '$line'"
+              continue
+            fi
             if [[ ! "$line" =~ ^AB#[0-9]+\ .* ]]; then
               echo "Commit inválido: '$line'"
               echo "Debe iniciar con: AB#<id> Mensaje"
