@@ -3,8 +3,6 @@ import { UsersService } from './users.service';
 import { UserEntity } from 'src/database/entities/user.entity';
 import { QueryUserDto } from './dtos/queryUser.dto';
 import type { RequestWithUser } from '../auth/auth.controller';
-import { use } from 'passport';
-import { ApiQuery } from '@nestjs/swagger';
 
 @Controller({ path: 'users', version: '1' })
 export class UsersController {
@@ -12,8 +10,6 @@ export class UsersController {
 
   @Get('paginated')
   async findPaginated(@Query() queryUserDto: QueryUserDto, @Req() req: RequestWithUser) {
-    const user = req.user;
-
     const response = await this.usersService.findAllByWorkspace(queryUserDto);
     return response;
   }

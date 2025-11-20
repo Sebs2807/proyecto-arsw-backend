@@ -6,7 +6,7 @@ import { Role } from 'src/database/entities/userworkspace.entity';
 export class UsersWorkspacesService {
   private readonly logger = new Logger(UsersWorkspacesService.name);
 
-  constructor(private usersWorkspacesDBService: UsersWorkspacesDBService) {}
+  constructor(private readonly usersWorkspacesDBService: UsersWorkspacesDBService) {}
 
   async addUserToWorkspace(userId: string, workspaceId: string, role: Role) {
     this.logger.log(`Adding user ${userId} to workspace ${workspaceId} with role ${role}`);

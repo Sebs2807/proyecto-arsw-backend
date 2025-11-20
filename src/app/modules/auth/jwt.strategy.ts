@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { Request } from 'express';
-import { UserWorkspaceEntity } from 'src/database/entities/userworkspace.entity';
 
 interface JwtPayload {
   id: string;

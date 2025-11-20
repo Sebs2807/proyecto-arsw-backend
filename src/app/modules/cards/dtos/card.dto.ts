@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
-import { IsString, IsOptional, IsIn, IsUUID, IsDate, IsNotEmpty, Length } from 'class-validator';
 import { ListEntity } from 'src/database/entities/list.entity';
 
 export class CardDto {

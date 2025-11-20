@@ -2,7 +2,6 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ListEntity } from '../entities/list.entity';
-import { BoardEntity } from '../entities/board.entity';
 
 @Injectable()
 export class ListsDBService {

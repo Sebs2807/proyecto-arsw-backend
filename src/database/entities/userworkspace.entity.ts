@@ -7,7 +7,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
-import { use } from 'passport';
 import { WorkspaceEntity } from './workspace.entity';
 
 export enum Role {

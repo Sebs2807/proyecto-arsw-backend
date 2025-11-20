@@ -6,8 +6,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { GoogleStrategy } from './google.strategy';
 import { JwtStrategy } from './jwt.strategy';
 import { UsersModule } from '../users/users.module';
-import { WorkspacesService } from '../workspaces/workspaces.service';
-import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
 import { UsersWorkspacesModule } from '../users-workspaces/usersworkspaces.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { BoardsModule } from '../boards/boards.module';

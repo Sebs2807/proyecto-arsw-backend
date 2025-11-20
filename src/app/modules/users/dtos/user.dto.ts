@@ -1,6 +1,6 @@
 // src/users/dto/user.dto.ts
 
-import { Expose, Exclude, Type } from 'class-transformer';
+import { Expose, Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UserDto {
