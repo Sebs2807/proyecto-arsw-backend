@@ -3,7 +3,6 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { UserWorkspaceEntity } from 'src/database/entities/userworkspace.entity';
 
 interface RequestWithCookies extends Request {
   cookies: { [key: string]: string };
@@ -30,7 +29,8 @@ export class AuthController {
 
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  googleAuth() {}
+  googleAuth() {   // Este endpoint inicia el flujo OAuth con Google mediante el AuthGuard
+ }
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))

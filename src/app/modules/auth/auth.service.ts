@@ -1,9 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
-import { Logger } from '@nestjs/common';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
-import { UserEntity } from 'src/database/entities/user.entity';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
 import { Role } from 'src/database/entities/userworkspace.entity';
@@ -51,7 +49,7 @@ export class AuthService {
 
       console.log('refresh token in loginOrCreateGoogleUser:', googleRefreshToken);
 
-      if (!user) {
+      if (user == null) {
         this.logger.log(`Creating new user with email: ${email}`);
 
         const newUser = await this.usersService.createUser({
@@ -148,7 +146,7 @@ export class AuthService {
       }
 
       const user = await this.userDbService.findById(payload.id);
-      if (!user || user.JWTRefreshToken !== refreshToken) {
+      if (user == null || user?.JWTRefreshToken !== refreshToken) {
         throw new UnauthorizedException('Refresh token inválido o expirado');
       }
 
