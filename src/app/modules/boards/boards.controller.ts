@@ -9,11 +9,9 @@ import {
   UseGuards,
   Req,
   Query,
-  Search,
 } from '@nestjs/common';
 import { BoardsService } from './boards.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import type { UserEntity } from '../../../database/entities/user.entity';
 import type { RequestWithUser } from '../auth/auth.controller';
 import { QueryBoardDto } from './dtos/queryBoard.dto';
 import { CreateBoardDto } from './dtos/createBoard.dto';
