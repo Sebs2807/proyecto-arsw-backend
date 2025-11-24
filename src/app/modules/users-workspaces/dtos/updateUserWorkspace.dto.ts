@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsEnum, IsUUID } from 'class-validator';
 import { Role } from 'src/database/entities/userworkspace.entity';
 
 export class UpdateUserWorkspaceDto {

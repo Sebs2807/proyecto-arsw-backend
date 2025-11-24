@@ -1,29 +1,29 @@
-// src/livekit/livekit.service.ts
 import { Injectable } from '@nestjs/common';
 import { AccessToken } from 'livekit-server-sdk';
 
 @Injectable()
 export class LivekitService {
-  private readonly apiKey = process.env.LIVEKIT_API_KEY!;
-  private readonly apiSecret = process.env.LIVEKIT_API_SECRET!;
-  private readonly livekitUrl = process.env.LIVEKIT_URL!;
+  private readonly apiKey = process.env.LIVEKIT_API_KEY;
+  private readonly apiSecret = process.env.LIVEKIT_API_SECRET;
+  private readonly serverUrl = process.env.LIVEKIT_URL;
 
-  async generateToken(roomName: string, participantName: string): Promise<string> {
+  getServerUrl() {
+    return this.serverUrl;
+  }
+
+  async generateToken(room: string, identity: string, displayName?: string): Promise<string> {
     const at = new AccessToken(this.apiKey, this.apiSecret, {
-      identity: participantName,
+      identity,
+      name: displayName ?? identity,
     });
 
     at.addGrant({
       roomJoin: true,
-      room: roomName,
+      room,
       canPublish: true,
       canSubscribe: true,
     });
 
-    return await at.toJwt();
-  }
-
-  getServerUrl(): string {
-    return this.livekitUrl;
+    return at.toJwt();
   }
 }

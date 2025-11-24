@@ -57,17 +57,17 @@ export class CalendarService {
     } catch (err) {
       this.logger.error('Error fetching Google Calendar events', err as Error);
 
-      const e = err as any;
-      const msg = e?.message ?? String(e);
+      const message = (err as Error)?.message ?? String(err);
+      
       if (
-        msg.includes('Invalid Credentials') ||
-        msg.includes('invalid_grant') ||
-        msg.includes('invalid_token')
+        message.includes('Invalid Credentials') ||
+        message.includes('invalid_grant') ||
+        message.includes('invalid_token')
       ) {
         throw new UnauthorizedException('Google credential inválida o revocada. Reautenticar.');
       }
 
-      if (msg.includes('has not been used in project') || msg.includes('is disabled')) {
+      if (message.includes('has not been used in project') || message.includes('is disabled')) {
         throw new InternalServerErrorException(
           'Google Calendar API no está habilitada para el proyecto del CLIENT_ID. Habilitá la API Calendar en Google Cloud Console y volvé a intentar.',
         );
@@ -112,7 +112,7 @@ export class CalendarService {
         end: opts.end,
       };
 
-      if (opts.attendees && opts.attendees.length) {
+      if (opts.attendees?.length) {
         resource.attendees = opts.attendees.map((email) => ({ email }));
       }
 
@@ -129,12 +129,12 @@ export class CalendarService {
       return created;
     } catch (err) {
       this.logger.error('Error creating Google Calendar event', err as Error);
-      const e = err as any;
-      const msg = e?.message ?? String(e);
+      const message = (err as Error)?.message ?? String(err);
+
       if (
-        msg.includes('Invalid Credentials') ||
-        msg.includes('invalid_grant') ||
-        msg.includes('invalid_token')
+        message.includes('Invalid Credentials') ||
+        message.includes('invalid_grant') ||
+        message.includes('invalid_token')
       ) {
         throw new UnauthorizedException('Google credential inválida o revocada. Reautenticar.');
       }
