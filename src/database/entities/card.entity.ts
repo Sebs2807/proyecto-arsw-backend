@@ -18,8 +18,17 @@ export class CardEntity {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ default: 'new' })
-  status: string;
+  @Column({ length: 100, nullable: true })
+  contactName: string;
+
+  @Column({ length: 150, nullable: true })
+  contactEmail?: string;
+
+  @Column({ length: 20, nullable: true })
+  contactPhone: string;
+
+  @Column({ length: 100, nullable: true })
+  industry?: string;
 
   @Column({ nullable: true })
   priority?: 'low' | 'medium' | 'high';

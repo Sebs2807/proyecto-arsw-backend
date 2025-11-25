@@ -21,6 +21,8 @@ import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspace
 import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 import { LivekitModule } from 'src/livekit/livekit.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { AgentEntity } from 'src/database/entities/agent.entity';
+import { AgentsModule } from './modules/agents/agents.module';
 
 @Module({
   imports: [
@@ -46,6 +48,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
           BoardEntity,
           ListEntity,
           CardEntity,
+          AgentEntity,
         ],
         synchronize: true,
         logging: false,
@@ -67,6 +70,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
     WorkspacesModule,
     UsersWorkspacesModule,
     CalendarModule,
+    AgentsModule,
   ],
   providers: [RealtimeGateway],
 })

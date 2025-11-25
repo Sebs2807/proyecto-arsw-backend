@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
-import { IsString, IsOptional, IsIn, IsUUID, IsDate, IsNotEmpty, Length } from 'class-validator';
+import { IsString, IsOptional, IsEmail, Length } from 'class-validator';
 import { ListEntity } from 'src/database/entities/list.entity';
 
 export class CardDto {
@@ -27,13 +27,48 @@ export class CardDto {
   description?: string;
 
   @ApiProperty({
-    description: 'Estado actual de la tarjeta',
-    example: 'new',
-    enum: ['new', 'in_progress', 'completed'],
-    default: 'new',
+    description: 'Nombre del contacto asociado al lead',
+    example: 'Juan Pérez',
+    required: false,
   })
   @Expose()
-  status: string;
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  contactName?: string;
+
+  @ApiProperty({
+    description: 'Correo electrónico del contacto',
+    example: 'juan.perez@empresa.com',
+    required: false,
+  })
+  @Expose()
+  @IsOptional()
+  @IsEmail()
+  @Length(1, 150)
+  contactEmail?: string;
+
+  @ApiProperty({
+    description: 'Número telefónico del contacto',
+    example: '+57 3101234567',
+    required: false,
+  })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @Length(4, 20)
+  contactPhone?: string;
+
+  @ApiProperty({
+    description: 'Industria o sector al que pertenece la empresa del contacto',
+    example: 'Tecnología',
+    required: false,
+  })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  industry?: string;
 
   @ApiProperty({
     description: 'Prioridad de la tarea',

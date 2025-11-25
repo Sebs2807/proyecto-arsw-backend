@@ -7,6 +7,7 @@ import {
   IsUUID,
   IsDateString,
   IsNotEmpty,
+  IsEmail,
   Length,
 } from 'class-validator';
 
@@ -32,15 +33,44 @@ export class CreateCardDto {
   description?: string;
 
   @ApiPropertyOptional({
-    description: 'Estado inicial de la tarjeta',
-    example: 'new',
-    enum: ['new', 'in_progress', 'completed'],
-    default: 'new',
+    description: 'Nombre del contacto asociado al lead',
+    example: 'Carlos Ramírez',
   })
   @IsOptional()
-  @IsIn(['new', 'in_progress', 'completed'])
+  @IsString()
+  @Length(1, 100)
   @Expose()
-  status?: 'new' | 'in_progress' | 'completed' = 'new';
+  contactName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Correo electrónico del contacto',
+    example: 'carlos.ramirez@empresa.com',
+  })
+  @IsOptional()
+  @IsEmail()
+  @Length(1, 150)
+  @Expose()
+  contactEmail?: string;
+
+  @ApiPropertyOptional({
+    description: 'Número telefónico del contacto',
+    example: '+57 3204567890',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(4, 20)
+  @Expose()
+  contactPhone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Industria del lead o empresa',
+    example: 'Tecnología',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  @Expose()
+  industry?: string;
 
   @ApiPropertyOptional({
     description: 'Prioridad de la tarjeta',
