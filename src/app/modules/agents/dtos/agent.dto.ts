@@ -15,6 +15,14 @@ export class AgentDto {
   id: string;
 
   @ApiProperty({
+    description: 'Identificador del Workspace al que pertenece el Agente',
+    example: 'w9f2d3e4-f5a6-7890-1234-567890abc999',
+    format: 'uuid',
+  })
+  @Expose()
+  workspaceId: string;
+
+  @ApiProperty({
     description: 'Nombre descriptivo del Agente',
     example: 'Asistente de Clasificación de Leads',
     maxLength: 100,
@@ -23,8 +31,7 @@ export class AgentDto {
   name: string;
 
   @ApiProperty({
-    description: 'Configuración detallada del flujo o comportamiento del Agente (JSON)',
-    example: { step: 1, action: 'classify' },
+    description: 'Configuración JSON del flujo del agente',
     required: false,
     nullable: true,
   })
@@ -32,8 +39,7 @@ export class AgentDto {
   flowConfig: any;
 
   @ApiProperty({
-    description:
-      'Temperatura de la IA para controlar la aleatoriedad (creatividad). Entre 0.0 y 2.0.',
+    description: 'Temperatura de la IA (0.0 - 2.0)',
     example: 0.7,
     default: 0.6,
   })
@@ -41,7 +47,7 @@ export class AgentDto {
   temperature: number;
 
   @ApiProperty({
-    description: 'Límite máximo de tokens que puede generar la respuesta del Agente.',
+    description: 'Número máximo de tokens generados',
     example: 800,
     default: 500,
   })
@@ -49,37 +55,32 @@ export class AgentDto {
   maxTokens: number;
 
   @ApiProperty({
-    description: 'Tableros a los que está asignado el Agente',
+    description: 'Tableros asignados al agente',
     type: () => [BoardDto],
-    required: false,
   })
   @Type(() => BoardDto)
   @Expose()
   boards: BoardDto[];
 
   @ApiProperty({
-    description: 'Listas que son gestionadas por este Agente',
+    description: 'Listas gestionadas por el agente',
     type: () => [ListDto],
-    required: false,
   })
   @Type(() => ListDto)
   @Expose()
   lists: ListDto[];
 
   @ApiProperty({
-    description: 'Fecha y hora de la última ejecución del Agente',
-    example: new Date().toISOString(),
-    required: false,
-    nullable: true,
+    description: 'Última ejecución del agente',
     type: String,
     format: 'date-time',
+    nullable: true,
   })
   @Expose()
   lastRunAt: Date;
 
   @ApiProperty({
-    description: 'Fecha y hora de creación del registro',
-    example: new Date().toISOString(),
+    description: 'Fecha de creación',
     type: String,
     format: 'date-time',
   })
@@ -87,8 +88,7 @@ export class AgentDto {
   createdAt: Date;
 
   @ApiProperty({
-    description: 'Fecha y hora de la última actualización del registro',
-    example: new Date().toISOString(),
+    description: 'Fecha de última actualización',
     type: String,
     format: 'date-time',
   })

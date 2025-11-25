@@ -6,21 +6,23 @@ import {
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { AgentEntity } from '../../../database/entities/agent.entity';
-// Asumimos que existen los DB Services
 
-import { BoardsDBService } from 'src/database/dbservices/boards.dbservice';
-
-import { AgentDto } from './dtos/agent.dto'; // Asumimos la existencia
 import { plainToInstance } from 'class-transformer';
 import { In } from 'typeorm';
+
+import { AgentEntity } from '../../../database/entities/agent.entity';
+import { BoardEntity } from 'src/database/entities/board.entity';
+import { ListEntity } from 'src/database/entities/list.entity';
+
+import { AgentsDBService } from 'src/database/dbservices/agents.dbservice';
+import { BoardsDBService } from 'src/database/dbservices/boards.dbservice';
+import { ListsDBService } from 'src/database/dbservices/lists.dbservice';
+import { WorkspacesDBService } from 'src/database/dbservices/workspaces.dbservice';
+
+import { AgentDto } from './dtos/agent.dto';
 import { CreateAgentDto } from './dtos/createAgent.dto';
 import { QueryAgentDto } from './dtos/queryAgent.dto';
 import { UpdateAgentDto } from './dtos/updateAgent.dto';
-import { AgentsDBService } from 'src/database/dbservices/agents.dbservice';
-import { ListsDBService } from 'src/database/dbservices/lists.dbservice';
-import { BoardEntity } from 'src/database/entities/board.entity';
-import { ListEntity } from 'src/database/entities/list.entity';
 
 @Injectable()
 export class AgentsService {
@@ -29,34 +31,37 @@ export class AgentsService {
   constructor(
     private readonly agentsDbService: AgentsDBService,
     private readonly boardsDbService: BoardsDBService,
-    private readonly listsDbService: ListsDBService, // Necesario para asociar Boards
+    private readonly listsDbService: ListsDBService,
+    private readonly workspacesDbService: WorkspacesDBService,
   ) {}
 
   async createAgent(body: CreateAgentDto): Promise<AgentEntity> {
-    const { name, temperature, maxTokens, flowConfig, boardIds, listIds } = body;
+    const { name, temperature, maxTokens, flowConfig, boardIds, listIds, workspaceId } = body;
 
-    this.logger.log('Creating agent with data: ' + JSON.stringify(body));
+    this.logger.log('Creating agent: ' + JSON.stringify(body));
 
-    let boards: BoardEntity[] = [];
-    if (boardIds?.length) {
-      boards = await this.boardsDbService.repository.findBy({
-        id: In(boardIds),
-      });
+    const workspace = await this.workspacesDbService.repository.findOne({
+      where: { id: workspaceId },
+    });
 
-      if (boards.length !== boardIds.length) {
-        this.logger.warn('Some board IDs were not found during agent creation.');
-      }
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found.`);
     }
 
-    let lists: ListEntity[] = [];
-    if (listIds?.length) {
-      lists = await this.listsDbService.repository.findBy({
-        id: In(listIds),
-      });
+    const boards = boardIds?.length
+      ? await this.boardsDbService.repository.findBy({ id: In(boardIds) })
+      : [];
 
-      if (lists.length !== listIds.length) {
-        this.logger.warn('Some list IDs were not found during agent creation.');
-      }
+    if (boardIds?.length && boards.length !== boardIds.length) {
+      this.logger.warn('Some board IDs were not found during agent creation.');
+    }
+
+    const lists = listIds?.length
+      ? await this.listsDbService.repository.findBy({ id: In(listIds) })
+      : [];
+
+    if (listIds?.length && lists.length !== listIds.length) {
+      this.logger.warn('Some list IDs were not found during agent creation.');
     }
 
     const agent = this.agentsDbService.repository.create({
@@ -66,6 +71,7 @@ export class AgentsService {
       flowConfig,
       boards,
       lists,
+      workspace,
     });
 
     return this.agentsDbService.repository.save(agent);
@@ -73,12 +79,19 @@ export class AgentsService {
 
   async findAll(queryAgent: QueryAgentDto) {
     try {
-      const { search, boardId, page, limit } = queryAgent;
+      const { search, boardId, page, limit, workspaceId } = queryAgent;
+
+      if (!workspaceId) {
+        throw new NotFoundException('workspaceId is required to fetch agents.');
+      }
+
       const skip = (page - 1) * limit;
 
       const query = this.agentsDbService.repository
         .createQueryBuilder('agent')
         .leftJoinAndSelect('agent.boards', 'boards')
+        .leftJoinAndSelect('agent.lists', 'lists')
+        .where('agent.workspaceId = :workspaceId', { workspaceId })
         .orderBy('agent.createdAt', 'DESC')
         .skip(skip)
         .take(limit);
@@ -93,11 +106,9 @@ export class AgentsService {
 
       const [agents, total] = await query.getManyAndCount();
 
-      console.log(agents);
-
-      const agentsDTO = plainToInstance(AgentDto, agents, { excludeExtraneousValues: true });
-
-      this.logger.log(`Fetched ${agents.length} agents (page ${page}/${Math.ceil(total / limit)})`);
+      const agentsDTO = plainToInstance(AgentDto, agents, {
+        excludeExtraneousValues: true,
+      });
 
       return {
         items: agentsDTO,
@@ -108,73 +119,89 @@ export class AgentsService {
       };
     } catch (error) {
       this.logger.error(`Error fetching agents: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('Failed to fetch agents due to a server error.');
+      throw new InternalServerErrorException('Failed to fetch agents.');
     }
   }
 
   async findOne(id: string): Promise<AgentEntity> {
     const agent = await this.agentsDbService.repository.findOne({
       where: { id },
-      relations: ['boards', 'lists'],
+      relations: ['boards', 'lists', 'workspace'],
     });
 
     if (!agent) {
       throw new NotFoundException(`Agent with ID "${id}" not found.`);
     }
+
     return agent;
   }
 
   async updateAgent(id: string, updateData: UpdateAgentDto) {
     try {
-      if (updateData.boardIds !== undefined) {
-        const agent = await this.agentsDbService.repository.findOne({
-          where: { id },
-          relations: ['boards'],
+      const agent = await this.agentsDbService.repository.findOne({
+        where: { id },
+        relations: ['boards', 'lists'],
+      });
+
+      if (!agent) {
+        throw new NotFoundException(`Agent with ID "${id}" not found.`);
+      }
+
+      if (updateData.name !== undefined) agent.name = updateData.name;
+      if (updateData.temperature !== undefined) agent.temperature = updateData.temperature;
+      if (updateData.maxTokens !== undefined) agent.maxTokens = updateData.maxTokens;
+      if (updateData.flowConfig !== undefined) agent.flowConfig = updateData.flowConfig;
+
+      if (updateData.workspaceId !== undefined) {
+        const workspace = await this.workspacesDbService.repository.findOne({
+          where: { id: updateData.workspaceId },
         });
 
-        if (!agent) throw new NotFoundException(`Agent with ID "${id}" not found`);
+        if (!workspace) {
+          throw new NotFoundException(`Workspace with ID "${updateData.workspaceId}" not found.`);
+        }
 
-        // Actualizar propiedades simples
-        if (updateData.name !== undefined) agent.name = updateData.name;
-        if (updateData.temperature !== undefined) agent.temperature = updateData.temperature;
-        if (updateData.maxTokens !== undefined) agent.maxTokens = updateData.maxTokens;
-        if (updateData.flowConfig !== undefined) agent.flowConfig = updateData.flowConfig;
+        if (updateData.workspaceId !== undefined) {
+          const workspace = await this.workspacesDbService.repository.findOne({
+            where: { id: updateData.workspaceId },
+          });
 
-        // Cargar y actualizar la relación boards
-        const boards =
+          if (!workspace) {
+            throw new NotFoundException(`Workspace with ID "${updateData.workspaceId}" not found.`);
+          }
+
+          agent.workspace = workspace;
+        }
+      }
+
+      if (updateData.boardIds !== undefined) {
+        agent.boards =
           updateData.boardIds.length > 0
             ? await this.boardsDbService.repository.findBy({ id: In(updateData.boardIds) })
             : [];
-
-        agent.boards = boards;
-        await this.agentsDbService.repository.save(agent);
-        return agent;
       }
 
-      // 2. Para actualizaciones simples (sin boardIds)
-      const { boardIds, ...partial } = updateData as any;
-      await this.agentsDbService.repository.update(id, partial);
-      const updated = await this.agentsDbService.repository.findOne({ where: { id } });
+      if (updateData.listIds !== undefined) {
+        agent.lists =
+          updateData.listIds.length > 0
+            ? await this.listsDbService.repository.findBy({ id: In(updateData.listIds) })
+            : [];
+      }
 
-      if (!updated) throw new NotFoundException(`Agent with ID "${id}" not found after update`);
-
-      return updated;
+      return await this.agentsDbService.repository.save(agent);
     } catch (error) {
       this.logger.error('Error updating agent:', error);
-      // Re-lanzar NotFoundException si ya ocurrió, si no, lanzar error interno
-      if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException('Failed to update agent');
+      throw new InternalServerErrorException('Failed to update agent.');
     }
   }
 
-  // --- ELIMINAR AGENTE ---
   async deleteAgent(id: string) {
-    // La eliminación de un agente debería manejar las cascadas definidas en la entidad
     const result = await this.agentsDbService.repository.delete(id);
 
     if (result.affected === 0) {
       throw new NotFoundException(`Agent with ID "${id}" not found.`);
     }
+
     return { deleted: true };
   }
 }

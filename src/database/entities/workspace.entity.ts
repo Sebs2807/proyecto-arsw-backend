@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { UserWorkspaceEntity } from './userworkspace.entity';
 import { BoardEntity } from './board.entity';
+import { AgentEntity } from './agent.entity';
 
 @Entity('workspaces')
 export class WorkspaceEntity {
@@ -26,6 +27,11 @@ export class WorkspaceEntity {
     cascade: true,
   })
   boards: BoardEntity[];
+
+  @OneToMany(() => AgentEntity, (agent) => agent.workspace, {
+    cascade: true,
+  })
+  agent: AgentEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -27,6 +27,7 @@ export class AgentsController {
 
   @Post()
   async create(@Body() body: CreateAgentDto) {
+    console.log('Creating agent with data:', body);
     return this.agentsService.createAgent(body);
   }
 

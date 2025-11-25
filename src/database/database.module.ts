@@ -7,7 +7,7 @@ import { CardEntity } from './entities/card.entity';
 import { UsersDBService } from './dbservices/users.dbservice';
 import { UserWorkspaceEntity } from './entities/userworkspace.entity';
 import { WorkspaceEntity } from './entities/workspace.entity';
-import { WorkspaceDBService } from './dbservices/workspace.dbservice';
+import { WorkspacesDBService } from './dbservices/workspaces.dbservice';
 import { UsersWorkspacesDBService } from './dbservices/usersworkspaces.dbservice';
 import { BoardsDBService } from './dbservices/boards.dbservice';
 import { BoardEntity } from './entities/board.entity';
@@ -29,7 +29,7 @@ import { AgentsDBService } from './dbservices/agents.dbservice';
   ],
   providers: [
     UsersDBService,
-    WorkspaceDBService,
+    WorkspacesDBService,
     UsersWorkspacesDBService,
     BoardsDBService,
     ListsDBService,
@@ -37,7 +37,7 @@ import { AgentsDBService } from './dbservices/agents.dbservice';
   ],
   exports: [
     UsersDBService,
-    WorkspaceDBService,
+    WorkspacesDBService,
     UsersWorkspacesDBService,
     BoardsDBService,
     ListsDBService,

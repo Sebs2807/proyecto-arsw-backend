@@ -17,7 +17,7 @@ export class CreateAgentDto {
   @ApiProperty({
     description:
       'Nombre del Agente. Es un campo obligatorio y debe tener entre 1 y 100 caracteres.',
-    example: 'Clasificador Automático de Tareas',
+    example: 'Clasificador Automático de Operaciones',
     maxLength: 100,
   })
   @IsString({ message: 'El nombre debe ser una cadena de texto.' })
@@ -26,8 +26,15 @@ export class CreateAgentDto {
   readonly name: string;
 
   @ApiProperty({
-    description:
-      'Configuración JSON del flujo del Agente (opcional). Se recomienda enviarlo como un objeto si tu entorno NestJS lo deserializa correctamente, o como string JSON.',
+    description: 'ID del Workspace al que pertenece este agente. Es obligatorio.',
+    example: '8e7b6fbd-2c41-4cc1-9dfe-3cc52e44f18e',
+  })
+  @IsUUID('4', { message: 'workspaceId debe ser un UUID válido.' })
+  @IsNotEmpty({ message: 'workspaceId es obligatorio.' })
+  readonly workspaceId: string;
+
+  @ApiProperty({
+    description: 'Configuración JSON del flujo del Agente (opcional).',
     example: { logic: 'priority_sort', retry_count: 3 },
     required: false,
     nullable: true,
@@ -36,51 +43,43 @@ export class CreateAgentDto {
   readonly flowConfig?: any;
 
   @ApiProperty({
-    description:
-      'Temperatura de la IA para controlar la aleatoriedad (creatividad). Opcional. Debe estar entre 0.0 y 2.0. Por defecto es 0.6.',
+    description: 'Temperatura de la IA (0.0 a 2.0).',
     example: 0.7,
     default: 0.6,
-    required: false,
   })
   @IsOptional()
   @IsNumber({}, { message: 'La temperatura debe ser un número.' })
-  @Min(0.0, { message: 'La temperatura mínima es 0.0.' })
-  @Max(2.0, { message: 'La temperatura máxima es 2.0.' })
+  @Min(0.0)
+  @Max(2.0)
   readonly temperature?: number = 0.6;
 
   @ApiProperty({
-    description:
-      'Límite máximo de tokens que puede generar la respuesta del Agente. Opcional. Por defecto es 500.',
+    description: 'Límite de tokens. Por defecto 500.',
     example: 800,
     default: 500,
-    required: false,
   })
   @IsOptional()
   @IsNumber({}, { message: 'El máximo de tokens debe ser un número.' })
-  @Min(1, { message: 'El máximo de tokens debe ser al menos 1.' })
+  @Min(1)
   readonly maxTokens?: number = 500;
 
   @ApiProperty({
-    description:
-      'Arreglo de IDs de tableros (UUIDs) a los que se asignará el agente inicialmente. Opcional.',
+    description: 'IDs de tableros asignados (opcional).',
     example: ['a1b2c3d4-e5f6-7890-1234-567890abcdef'],
-    required: false,
     type: [String],
   })
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true, message: 'Cada ID de tablero debe ser un UUID válido.' })
+  @IsUUID('4', { each: true })
   readonly boardIds?: string[];
 
   @ApiProperty({
-    description:
-      'Arreglo de IDs de listas (UUIDs) que serán gestionadas por el agente inicialmente. Opcional.',
+    description: 'IDs de listas asignadas (opcional).',
     example: ['b1c2d3e4-f5g6-7890-1234-567890abcdef'],
-    required: false,
     type: [String],
   })
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true, message: 'Cada ID de lista debe ser un UUID válido.' })
+  @IsUUID('4', { each: true })
   readonly listIds?: string[];
 }

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspacesService } from '../../../src/app/modules/workspaces/workspaces.service';
-import { WorkspaceDBService } from '../../../src/database/dbservices/workspace.dbservice';
+import { WorkspaceDBService } from '../../../src/database/dbservices/workspaces.dbservice';
 import { WorkspaceEntity } from '../../../src/database/entities/workspace.entity';
 import { Logger } from '@nestjs/common';
 

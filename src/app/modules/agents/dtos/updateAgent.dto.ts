@@ -1,5 +1,7 @@
+// src/agents/dtos/updateAgent.dto.ts
+
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsArray, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsArray, IsNumber, IsUUID } from 'class-validator';
 
 export class UpdateAgentDto {
   @ApiProperty({ required: false })
@@ -22,7 +24,7 @@ export class UpdateAgentDto {
   maxTokens?: number;
 
   @ApiProperty({
-    description: 'IDs de los tableros',
+    description: 'IDs de tableros',
     type: [String],
     required: false,
   })
@@ -32,7 +34,7 @@ export class UpdateAgentDto {
   boardIds?: string[];
 
   @ApiProperty({
-    description: 'IDs de las listas',
+    description: 'IDs de listas',
     type: [String],
     required: false,
   })
@@ -40,4 +42,13 @@ export class UpdateAgentDto {
   @IsArray()
   @IsString({ each: true })
   listIds?: string[];
+
+  @ApiProperty({
+    description: 'ID del Workspace del agente',
+    required: false,
+    example: '9f34bdf3-2da0-4c02-bfd4-8ecc5871ab29',
+  })
+  @IsOptional()
+  @IsUUID()
+  workspaceId?: string;
 }

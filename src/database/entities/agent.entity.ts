@@ -6,10 +6,12 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
 } from 'typeorm';
 
 import { BoardEntity } from './board.entity';
 import { ListEntity } from './list.entity';
+import { WorkspaceEntity } from './workspace.entity';
 
 @Entity('agents')
 export class AgentEntity {
@@ -42,4 +44,9 @@ export class AgentEntity {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @ManyToOne(() => WorkspaceEntity, (workspace) => workspace.boards, {
+    onDelete: 'CASCADE',
+  })
+  workspace: WorkspaceEntity;
 }

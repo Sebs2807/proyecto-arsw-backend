@@ -10,9 +10,19 @@ import {
   UseGuards,
   Logger,
 } from '@nestjs/common';
-import { KnowledgeService } from './knowledge.service';
-import { KnowledgeDto } from './knowledge.dto';
+
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { KnowledgeService } from './knowledges.service';
+import { KnowledgeDto } from './dtos/knowledge.dto';
+import { CreateKnowledgeDto } from './dtos/createKnowledge.dto';
+
+export type KnowledgeCategory =
+  | 'product_feature'
+  | 'pricing'
+  | 'objection'
+  | 'flow_step'
+  | 'legal'
+  | 'faq';
 
 @Controller({ path: 'knowledges', version: '1' })
 @UseGuards(JwtAuthGuard)
@@ -21,11 +31,12 @@ export class KnowledgeController {
   constructor(private readonly knowledegeService: KnowledgeService) {}
 
   @Post()
-  create(@Body() dto: KnowledgeDto) {
+  create(@Body() dto: CreateKnowledgeDto) {
+    console.log('Creating knowledge with data:', dto);
     return this.knowledegeService.createKnowledge(dto);
   }
 
-  @Get()
+  @Get('paginated')
   findAll() {
     return this.knowledegeService.getAll();
   }

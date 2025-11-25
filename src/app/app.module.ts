@@ -23,6 +23,7 @@ import { LivekitModule } from 'src/livekit/livekit.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { AgentEntity } from 'src/database/entities/agent.entity';
 import { AgentsModule } from './modules/agents/agents.module';
+import { KnowledgeModule } from './modules/knowledges/knowledges.modules';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { AgentsModule } from './modules/agents/agents.module';
     UsersWorkspacesModule,
     CalendarModule,
     AgentsModule,
+    KnowledgeModule,
   ],
   providers: [RealtimeGateway],
 })

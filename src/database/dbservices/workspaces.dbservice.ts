@@ -4,8 +4,8 @@ import { WorkspaceEntity } from '../entities/workspace.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
-export class WorkspaceDBService {
-  private readonly logger = new Logger(WorkspaceDBService.name);
+export class WorkspacesDBService {
+  private readonly logger = new Logger(WorkspacesDBService.name);
   public readonly repository: Repository<WorkspaceEntity>;
 
   constructor(
