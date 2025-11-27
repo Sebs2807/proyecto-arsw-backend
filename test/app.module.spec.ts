@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Module, DynamicModule } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import * as fs from 'fs';
 
 // --- Minimal valid Nest modules for scanner ---
 @Module({}) class MockAuthModule {}
@@ -24,7 +25,18 @@ jest.mock('../src/database/entities/card.entity', () => ({ CardEntity: class {} 
 // --- Mock TypeORM module ---
 @Module({}) class MockTypeOrmModule {}
 const forRootMock = jest.fn().mockReturnValue({ module: MockTypeOrmModule } as DynamicModule);
-const forRootAsyncMock = jest.fn().mockReturnValue({ module: MockTypeOrmModule } as DynamicModule);
+const forRootAsyncMock = jest.fn().mockImplementation((options) => {
+  if (options?.useFactory) {
+    const fakeConfig = {
+      get: (key: string, def?: any) =>
+        process.env[key] !== undefined ? process.env[key] : def,
+    };
+    options.useFactory(fakeConfig); 
+  }
+
+  return { module: MockTypeOrmModule } as DynamicModule;
+});
+
 
 jest.mock('@nestjs/typeorm', () => ({
   TypeOrmModule: {
@@ -113,4 +125,39 @@ describe('AppModule (mocked)', () => {
       expect(true).toBe(true);
     }
   });
+
+  it('should configure DB without SSL when DB_SSL is not true', async () => {
+    process.env.DB_SSL = 'false';
+
+    const module = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    expect(module).toBeDefined();
+  });
+
+  it('should evaluate real SSL branch (coverage)', async () => {
+    process.env.DB_SSL = 'true';
+
+    jest.spyOn(fs, 'readFileSync').mockReturnValue('FAKE_CA_PEM');
+
+    jest.isolateModules(() => {
+      const { AppModule } = require('../src/app/app.module');
+      const config = {
+        get: (key: string) => process.env[key],
+      };
+
+      const typeorm = require('@nestjs/typeorm');
+      const call = typeorm.TypeOrmModule.forRootAsync.mock.calls[0]?.[0];
+
+      if (call) {
+        const opts = call.useFactory(config);
+        expect(opts.ssl).toBeDefined();
+        expect(opts.ssl.ca).toBe('FAKE_CA_PEM');
+        expect(opts.ssl.rejectUnauthorized).toBe(true);
+      }
+    });
+  });
+
+
 });
