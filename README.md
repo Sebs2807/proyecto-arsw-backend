@@ -265,4 +265,3 @@ Este proyecto se distribuye como `UNLICENSED` (ver `package.json`).
 - TypeORM Docs: https://typeorm.io
 - LiveKit: https://docs.livekit.io
 - Google APIs (OAuth/Calendar): https://developers.google.com
-
