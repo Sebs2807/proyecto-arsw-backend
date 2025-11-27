@@ -3,27 +3,17 @@ import { AppModule } from './app/app.module';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import * as fs from 'node:fs';
-import * as https from 'node:https';
-import { readFileSync } from 'node:fs';
 import 'reflect-metadata';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-interceptor.filter';
 
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection:', reason);
-});
-
 export async function bootstrap() {
-  console.log('Cargando aplicación...');
   const httpsOptions = {
-    key: readFileSync('./certs/synapse+1-key.pem'),
-    cert: readFileSync('./certs/synapse+1.pem'),
+    key: fs.readFileSync('./certs/synapse+1-key.pem') as Buffer,
+    cert: fs.readFileSync('./certs/synapse+1.pem') as Buffer,
   };
+
   const app = await NestFactory.create(AppModule, { httpsOptions });
   app.use(cookieParser());
 
@@ -56,17 +46,6 @@ export async function bootstrap() {
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  console.log('Iniciando la aplicación...');
   await app.listen(3000);
-  console.log('Aplicación iniciada en el puerto 3000');
 }
-
-(async () => {
-  try {
-    console.log('Iniciando bootstrap...');
-    await bootstrap();
-  } catch (error) {
-    console.error('Error durante el bootstrap:', error);
-  }
-})();
-
+void bootstrap();
