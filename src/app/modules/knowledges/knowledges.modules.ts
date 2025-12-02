@@ -1,7 +1,7 @@
 // knowledge.module.ts
 import { Module } from '@nestjs/common';
 
-import { EmbeddingService } from '../ai/embeding-model.service';
+import { EmbeddingService } from '../ai/services/embeding-model.service';
 import { KnowledgeController } from './knowledges.controller';
 import { KnowledgeService } from './knowledges.service';
 

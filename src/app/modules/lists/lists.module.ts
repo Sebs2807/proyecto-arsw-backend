@@ -8,10 +8,19 @@ import { ListService } from './lists.service';
 import { ListController } from './lists.controller';
 import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 import { DatabaseModule } from 'src/database/database.module';
+import { AiModule } from '../ai/ai.module';
+import { ElevenLabsModule } from '../eleven-labs/eleven-labs.module';
+import { RealtimeModule } from 'src/gateways/realtime.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ListEntity]), DatabaseModule],
-  providers: [ListService, RealtimeGateway],
+  imports: [
+    TypeOrmModule.forFeature([ListEntity]),
+    DatabaseModule,
+    AiModule,
+    ElevenLabsModule,
+    RealtimeModule,
+  ],
+  providers: [ListService],
   controllers: [ListController],
   exports: [ListService],
 })

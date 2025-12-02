@@ -24,6 +24,8 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 import { AgentEntity } from 'src/database/entities/agent.entity';
 import { AgentsModule } from './modules/agents/agents.module';
 import { KnowledgeModule } from './modules/knowledges/knowledges.modules';
+import { TwilioModule } from './modules/twilio/twilio.module';
+import { RealtimeModule } from 'src/gateways/realtime.module';
 
 @Module({
   imports: [
@@ -73,7 +75,8 @@ import { KnowledgeModule } from './modules/knowledges/knowledges.modules';
     CalendarModule,
     AgentsModule,
     KnowledgeModule,
+    TwilioModule,
+    RealtimeModule,
   ],
-  providers: [RealtimeGateway],
 })
 export class AppModule {}

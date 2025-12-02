@@ -2,7 +2,7 @@
 import { Injectable, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import crypto from 'crypto';
-import { EmbeddingService } from '../ai/embeding-model.service';
+import { EmbeddingService } from '../ai/services/embeding-model.service';
 import { CreateKnowledgeDto } from './dtos/createKnowledge.dto';
 import { title } from 'process';
 
