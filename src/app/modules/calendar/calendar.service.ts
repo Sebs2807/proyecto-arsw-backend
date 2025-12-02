@@ -179,4 +179,56 @@ export class CalendarService {
       throw new InternalServerErrorException('No se pudo eliminar el evento en Google Calendar');
     }
   }
+
+  async updateEventForUser(
+    userId: string,
+    eventId: string,
+    opts: { start: { dateTime?: string } | { date?: string }; end: { dateTime?: string } | { date?: string } },
+  ) {
+    try {
+      const user = await this.usersDb.findById(userId);
+      if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+      const refreshToken = user.googleRefreshToken;
+      if (!refreshToken) throw new UnauthorizedException('Usuario no tiene Google conectado');
+
+      const oAuth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+      );
+      oAuth2Client.setCredentials({ refresh_token: refreshToken });
+
+      await oAuth2Client.getAccessToken();
+
+      const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+
+      const requestBody: any = {};
+      if (opts.start) requestBody.start = opts.start;
+      if (opts.end) requestBody.end = opts.end;
+
+      const res = await calendar.events.patch({
+        calendarId: 'primary',
+        eventId,
+        requestBody,
+        sendUpdates: 'all',
+      });
+
+      const updated = (res as any).data;
+      this.logger.log(`Updated Google Calendar event ${eventId} for user ${userId}`);
+      return updated;
+    } catch (err) {
+      this.logger.error('Error updating Google Calendar event', err as Error);
+      const message = (err as Error)?.message ?? String(err);
+
+      if (
+        message.includes('Invalid Credentials') ||
+        message.includes('invalid_grant') ||
+        message.includes('invalid_token')
+      ) {
+        throw new UnauthorizedException('Google credential inválida o revocada. Reautenticar.');
+      }
+
+      throw new InternalServerErrorException('No se pudo actualizar el evento en Google Calendar');
+    }
+  }
 }

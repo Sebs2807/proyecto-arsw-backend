@@ -9,10 +9,12 @@ import {
   BadRequestException,
   Delete,
   Param,
+  Patch,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CalendarService } from './calendar.service';
 import { CreateEventDto } from './dtos/createEvent.dto';
+import { RescheduleEventDto } from './dtos/rescheduleEvent.dto';
 import type { Request } from 'express';
 
 @Controller({ path: 'calendar', version: '1' })
@@ -96,5 +98,27 @@ export class CalendarController {
     const user = req.user as { id: string; email: string };
     await this.calendarService.deleteEventForUser(user.id, id);
     return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('google-events/:id')
+  async rescheduleGoogleEvent(@Req() req: Request, @Param('id') id: string, @Body() body: RescheduleEventDto) {
+    const user = req.user as { id: string; email: string };
+
+    let start: { dateTime: string } | { date: string } | undefined;
+    let end: { dateTime: string } | { date: string } | undefined;
+
+    if (body.startDateTime) start = { dateTime: body.startDateTime };
+    else if (body.startDate) start = { date: body.startDate };
+
+    if (body.endDateTime) end = { dateTime: body.endDateTime };
+    else if (body.endDate) end = { date: body.endDate };
+
+    if (!start || !end) {
+      throw new BadRequestException('Se requiere startDateTime/startDate y endDateTime/endDate para reagendar');
+    }
+
+    const updated = await this.calendarService.updateEventForUser(user.id, id, { start, end });
+    return { updated };
   }
 }
