@@ -7,6 +7,8 @@ import {
   Post,
   Body,
   BadRequestException,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CalendarService } from './calendar.service';
@@ -86,5 +88,13 @@ export class CalendarController {
     });
 
     return { created };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('google-events/:id')
+  async deleteGoogleEvent(@Req() req: Request, @Param('id') id: string) {
+    const user = req.user as { id: string; email: string };
+    await this.calendarService.deleteEventForUser(user.id, id);
+    return { ok: true };
   }
 }
