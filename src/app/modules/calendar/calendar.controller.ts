@@ -7,6 +7,8 @@ import {
   Post,
   Body,
   BadRequestException,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CalendarService } from './calendar.service';
@@ -23,9 +25,28 @@ export class CalendarController {
     @Req() req: Request,
     @Query('start') start: string,
     @Query('end') end: string,
+    @Query('range') range?: '24h' | '7d' | string,
   ) {
     const user = req.user as { id: string; email: string };
-    const { events } = await this.calendarService.getEventsForUser(user.id, start, end);
+
+    // Preserve existing behavior: if start/end are provided we use them.
+    // If both are missing and `range` is supplied we compute start/end accordingly.
+    let startIso = start;
+    let endIso = end;
+
+    if (!startIso && !endIso && range) {
+      const now = new Date();
+      if (range === '24h' || range === '24') {
+        startIso = now.toISOString();
+        endIso = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      } else if (range === '7d' || range === '7') {
+        startIso = now.toISOString();
+        endIso = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      }
+      // If range is invalid we intentionally do nothing to avoid changing existing behaviour.
+    }
+
+    const { events } = await this.calendarService.getEventsForUser(user.id, startIso, endIso);
     return { events };
   }
 
@@ -67,5 +88,13 @@ export class CalendarController {
     });
 
     return { created };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('google-events/:id')
+  async deleteGoogleEvent(@Req() req: Request, @Param('id') id: string) {
+    const user = req.user as { id: string; email: string };
+    await this.calendarService.deleteEventForUser(user.id, id);
+    return { ok: true };
   }
 }

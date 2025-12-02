@@ -142,4 +142,41 @@ export class CalendarService {
       throw new InternalServerErrorException('No se pudo crear el evento en Google Calendar');
     }
   }
+
+  async deleteEventForUser(userId: string, eventId: string) {
+    try {
+      const user = await this.usersDb.findById(userId);
+      if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+      const refreshToken = user.googleRefreshToken;
+      if (!refreshToken) throw new UnauthorizedException('Usuario no tiene Google conectado');
+
+      const oAuth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+      );
+      oAuth2Client.setCredentials({ refresh_token: refreshToken });
+
+      await oAuth2Client.getAccessToken();
+      const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+
+      await calendar.events.delete({ calendarId: 'primary', eventId, sendUpdates: 'all' });
+
+      this.logger.log(`Deleted Google Calendar event ${eventId} for user ${userId}`);
+      return { ok: true };
+    } catch (err) {
+      this.logger.error('Error deleting Google Calendar event', err as Error);
+      const message = (err as Error)?.message ?? String(err);
+
+      if (
+        message.includes('Invalid Credentials') ||
+        message.includes('invalid_grant') ||
+        message.includes('invalid_token')
+      ) {
+        throw new UnauthorizedException('Google credential inválida o revocada. Reautenticar.');
+      }
+
+      throw new InternalServerErrorException('No se pudo eliminar el evento en Google Calendar');
+    }
+  }
 }
