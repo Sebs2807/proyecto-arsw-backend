@@ -48,8 +48,8 @@ export class CalendarController {
       // If range is invalid we intentionally do nothing to avoid changing existing behaviour.
     }
 
-    const { events } = await this.calendarService.getEventsForUser(user.id, startIso, endIso);
-    return { events };
+    const result = await this.calendarService.getEventsForUser(user.id, startIso, endIso);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
