@@ -2,10 +2,6 @@ import { InternalServerErrorException, UnauthorizedException, Logger } from '@ne
 import { CalendarService } from '../../../src/app/modules/calendar/calendar.service';
 import { google } from 'googleapis';
 
-const listMock = jest.fn();
-const insertMock = jest.fn();
-const getAccessTokenMock = jest.fn();
-
 jest.mock('googleapis', () => {
   const _list = jest.fn();
   const _insert = jest.fn();
