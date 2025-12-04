@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Req, Res } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Res, Post, Body } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import type { Request, Response } from 'express';
@@ -97,5 +97,18 @@ export class AuthController {
       id: req.user.id,
       email: req.user.email,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  async logout(@Req() req: RequestWithUser, @Res({ passthrough: true }) res: Response, @Body('revokeGoogle') revokeGoogle?: boolean) {
+    const userId = req.user.id;
+    await this.authService.logout(userId, Boolean(revokeGoogle));
+
+    // Clear cookies if present
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+
+    return { ok: true };
   }
 }
