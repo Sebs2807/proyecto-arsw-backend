@@ -1,4 +1,3 @@
-// knowledge.service.ts
 import { Injectable, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import crypto from 'crypto';
@@ -6,13 +5,23 @@ import { EmbeddingService } from '../ai/services/embeding-model.service';
 import { CreateKnowledgeDto } from './dtos/createKnowledge.dto';
 import { title } from 'process';
 
-// DTO
+// DTO para la respuesta paginada del servicio
+export interface PaginatedResponse<T> {
+  points: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// DTO para la lógica de actualización
 export class KnowledgeDto {
   text: string; // Texto principal
   category: string; // Categoría del conocimiento
   metadata?: Record<string, any>; // Metadata adicional
   label?: string; // Etiqueta o nombre del conocimiento
   relatedIds?: string[]; // IDs de conocimientos relacionados
+  agentId?: string; // ID del agente asociado
 }
 
 @Injectable()
@@ -58,6 +67,7 @@ export class KnowledgeService implements OnModuleInit {
         category: dto.category,
         tags: dto.tags || [],
         metadata: dto.metadata || {},
+        agentId: dto.agentId,
       },
     };
 
@@ -67,8 +77,74 @@ export class KnowledgeService implements OnModuleInit {
     return point;
   }
 
-  /** Obtener todos los conocimientos */
+  /**
+   * Obtener conocimientos paginados con filtros
+   * Este es el nuevo método que reemplaza la lógica de `findAll` del controller.
+   */
+  async getPaginated({
+    page = 1,
+    limit = 10,
+    search,
+    agentId,
+    category,
+  }: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    agentId?: string;
+    category?: string;
+  }): Promise<PaginatedResponse<any>> {
+    const offset = (page - 1) * limit;
+
+    // 1. Construir el filtro para Qdrant (AgentId y Category)
+    const filterConditions: any[] = [];
+    
+    // Filtrar por agentId (OBLIGATORIO)
+    if (agentId) {
+      filterConditions.push({ key: 'agentId', match: { value: agentId } });
+    }
+    
+    // Filtrar por category
+    if (category) {
+      filterConditions.push({ key: 'category', match: { value: category } });
+    }
+
+    const filter = filterConditions.length > 0 
+      ? { must: filterConditions }
+      : undefined;
+
+    // 2. Obtener el Conteo Total (necesario para la paginación)
+    const countResult = await this.qdrant.count(this.collection, { 
+      filter, 
+      exact: true 
+    });
+    const totalItems = countResult.count;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // 3. Obtener los Puntos Pagados y Filtrados
+    // Reutilizamos la lógica de `search` para buscar por vector/texto y aplicar filtros.
+    const searchResults = await this.search(
+      limit, 
+      agentId, 
+      search, 
+      undefined, // tags (no implementado en QueryKnowledgeDto)
+      offset, // AÑADIDO: Offset para la paginación
+      category, // AÑADIDO: Category para el filtrado
+    );
+
+    return {
+      points: searchResults as any, // Los puntos de Qdrant
+      total: totalItems,
+      page: page,
+      limit: limit,
+      totalPages: totalPages,
+    };
+  }
+
+
+  /** Obtener todos los conocimientos (DEPRECADO, pero dejado para compatibilidad interna) */
   async getAll(limit = 100, offset = 0) {
+    // Esto es solo un scroll, no tiene la metadata de paginación que el FE necesita
     return await this.qdrant.scroll(this.collection, { limit, offset });
   }
 
@@ -108,23 +184,56 @@ export class KnowledgeService implements OnModuleInit {
     return { message: `Knowledge ${id} eliminado correctamente` };
   }
 
-  /** Buscar conocimientos similares por texto */
-  async search(text: string, top = 5) {
-    const vector = await this.embeddingService.generate(text);
+  /** * Buscar conocimientos con filtros opcionales
+   * @param top - Número máximo de resultados (limit)
+   * @param agentId - Filtrar por agente específico (OBLIGATORIO para el uso)
+   * @param text - Texto para búsqueda semántica (opcional)
+   * @param tags - Array de tags para filtrar (opcional)
+   * @param offset - Para paginación (AÑADIDO)
+   * @param category - Para filtrado (AÑADIDO)
+   */
+  async search(
+    top = 5, 
+    agentId?: string, 
+    text?: string, 
+    tags?: string[], 
+    offset = 0, // AÑADIDO
+    category?: string // AÑADIDO
+  ) {
+    // Si hay texto, usar búsqueda semántica; si no, usar vector dummy (para obtener todos los puntos)
+    const vector = text 
+      ? await this.embeddingService.generate(text)
+      : new Array(this.vectorSize).fill(0);
+    
+    const filterConditions: any[] = [];
+    
+    // Filtrar por agentId si se proporciona
+    if (agentId) {
+      filterConditions.push({ key: 'agentId', match: { value: agentId } });
+    }
+    
+    // Filtrar por category si se proporciona
+    if (category) {
+      filterConditions.push({ key: 'category', match: { value: category } });
+    }
+
+    // Filtrar por tags si se proporcionan
+    if (tags && tags.length > 0) {
+      tags.forEach(tag => {
+        filterConditions.push({ key: 'tags', match: { value: tag } });
+      });
+    }
+
+    const filter = filterConditions.length > 0 
+      ? { must: filterConditions }
+      : undefined;
+
     return await this.qdrant.search(this.collection, {
       vector,
       limit: top,
+      offset: offset, // AÑADIDO: Usar offset para paginación
       with_payload: true,
-    });
-  }
-
-  /** Buscar por etiqueta */
-  async searchByLabel(label: string, top = 5) {
-    return await this.qdrant.search(this.collection, {
-      vector: new Array(this.vectorSize).fill(0), // Dummy vector solo para filtro
-      limit: top,
-      with_payload: true,
-      filter: { must: [{ key: 'label', match: { value: label } }] },
+      filter,
     });
   }
 }

@@ -1,5 +1,4 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-
 import { Type } from 'class-transformer';
 
 type KnowledgeCategory =
@@ -26,4 +25,9 @@ export class QueryKnowledgeDto {
   @IsOptional()
   @Type(() => Number)
   limit?: number = 10;
+  
+  // AÑADIDO: El frontend envía 'workspaceId', que el backend usará como 'agentId'
+  @IsOptional()
+  @IsString()
+  workspaceId?: string; 
 }

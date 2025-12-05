@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CardEntity } from '../../../database/entities/card.entity';
@@ -14,8 +14,15 @@ export class CardService {
     private readonly cardRepository: Repository<CardEntity>,
     @InjectRepository(ListEntity)
     private readonly listRepository: Repository<ListEntity>,
-    private readonly realtimeGateway: RealtimeGateway,
+    @Inject(forwardRef(() => RealtimeGateway))
+    public readonly realtimeGateway: RealtimeGateway,
   ) {}
+
+  async updateConversationState(id: string, conversationState: any): Promise<CardEntity> {
+    const card = await this.findOne(id);
+    card.conversationState = conversationState;
+    return await this.cardRepository.save(card);
+  }
 
   async findAll(): Promise<CardEntity[]> {
     return this.cardRepository.find({
@@ -27,6 +34,16 @@ export class CardService {
     const card = await this.cardRepository.findOne({
       where: { id },
       relations: ['list'],
+    });
+
+    if (!card) throw new NotFoundException(`Card with id ${id} not found`);
+    return card;
+  }
+
+  async findCardWithFullContext(id: string): Promise<CardEntity> {
+    const card = await this.cardRepository.findOne({
+      where: { id },
+      relations: ['list', 'list.agent'],
     });
 
     if (!card) throw new NotFoundException(`Card with id ${id} not found`);
@@ -61,31 +78,33 @@ export class CardService {
     console.log('UpdateCardDto received:', dto);
     const card = await this.findOne(id);
 
+    const { listId, ...updateData } = dto;
     let sourceListId = card.list.id;
     let destListId = sourceListId;
 
-    if (dto.listId) {
+    if (listId) {
       const newList = await this.listRepository.findOne({
-        where: { id: dto.listId },
+        where: { id: listId },
       });
 
-      if (!newList) throw new NotFoundException(`List with id ${dto.listId} not found`);
+      if (!newList) throw new NotFoundException(`List with id ${listId} not found`);
 
       card.list = newList;
       destListId = newList.id;
     }
 
-    Object.assign(card, { ...dto, listId: undefined });
+    Object.assign(card, updateData);
 
     const updated = await this.cardRepository.save(card);
+    const fullCard = await this.findOne(updated.id);
 
     this.realtimeGateway.emitGlobalUpdate('card:moved', {
       sourceListId,
       destListId,
-      card: updated,
+      card: fullCard,
     });
 
-    return updated;
+    return fullCard;
   }
 
   async delete(id: string): Promise<void> {

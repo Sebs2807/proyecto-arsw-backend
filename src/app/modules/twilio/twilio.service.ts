@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { language } from 'googleapis/build/src/apis/language';
+import { AgentEntity } from 'src/database/entities/agent.entity';
+import { CardEntity } from 'src/database/entities/card.entity';
 import * as Twilio from 'twilio';
 
 @Injectable()
@@ -16,7 +17,7 @@ export class TwilioService {
     }
   }
 
-  generateConversationRelayTwiML(wsUrl: string, agentId: string, welcomeGreeting: string): string {
+  generateConversationRelayTwiML(wsUrl: string, agentId: string, cardId: string, welcomeGreeting: string): string {
     const response = new Twilio.twiml.VoiceResponse();
 
     const connect = response.connect();
@@ -44,27 +45,27 @@ export class TwilioService {
       interruptible: 'true', // Asegúrate de que sea un string 'true' o 'false'
     });
 
-    // Agregar parámetros custom si los necesitas
+    // Agregar parámetros custom
     relay.addChild('Parameter', { name: 'agentId', value: agentId });
+    relay.addChild('Parameter', { name: 'cardId', value: cardId });
 
     return response.toString();
   }
 
-  async initiateCall(to: string, agentId: string, publicUrl: string): Promise<string> {
-    const from = this.configService.get<string>('TWILIO_VERIFIED_CALLER_ID');
-    console.log('TWILIO_VERIFIED_CALLER_ID:', from);
+  async initiateCall(to: string, agent: AgentEntity, publicUrl: string, card: CardEntity): Promise<string> {
+    const from = this.configService.get<string>('TWILIO_FROM_NUMBER');
 
     if (!from) {
-      throw new Error('TWILIO_VERIFIED_CALLER_ID not configured');
+      throw new Error('TWILIO_FROM_NUMBER not configured');
     }
 
-    const url = `${publicUrl}/twilio/voice?agentId=${agentId}`;
+    const url = `${publicUrl}/twilio/voice?agentId=${agent.id}&cardId=${card.id}`;
 
     console.log(`Iniciando llamada Twilio a ${to} desde ${from} con URL: ${url}`);
 
     const call = await this.client.calls.create({
-      to: '+573202293663',
-      from: '+19802819598',
+      to: card.contactPhone,
+      from: from,
       url,
       method: 'GET',
     });

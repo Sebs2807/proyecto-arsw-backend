@@ -36,6 +36,16 @@ export class CardEntity {
   @ManyToOne(() => ListEntity, (list) => list.cards, { onDelete: 'CASCADE' })
   list: ListEntity;
 
+  @Column({ type: 'json', nullable: true })
+  conversationState?: {
+    currentNode: string;
+    history: Array<{
+      node: string;
+      text: string;
+      timestamp: string;
+    }>;
+  };
+
   @Column({ type: 'timestamp', nullable: true })
   dueDate?: Date;
 

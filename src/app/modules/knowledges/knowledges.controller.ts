@@ -1,4 +1,3 @@
-// knowledge.controller.ts
 import {
   Controller,
   Post,
@@ -9,12 +8,14 @@ import {
   Patch,
   UseGuards,
   Logger,
+  Query, // AÑADIDO
 } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { KnowledgeService } from './knowledges.service';
 import { KnowledgeDto } from './dtos/knowledge.dto';
 import { CreateKnowledgeDto } from './dtos/createKnowledge.dto';
+import { QueryKnowledgeDto } from './dtos/queryKnowledge.dto'; // AÑADIDO
 
 export type KnowledgeCategory =
   | 'product_feature'
@@ -28,31 +29,39 @@ export type KnowledgeCategory =
 @UseGuards(JwtAuthGuard)
 export class KnowledgeController {
   private readonly logger = new Logger(KnowledgeController.name);
-  constructor(private readonly knowledegeService: KnowledgeService) {}
+  // Constructor corregido (typo: knowledegeService -> knowledgeService)
+  constructor(private readonly knowledgeService: KnowledgeService) {} 
 
   @Post()
   create(@Body() dto: CreateKnowledgeDto) {
     console.log('Creating knowledge with data:', dto);
-    return this.knowledegeService.createKnowledge(dto);
+    return this.knowledgeService.createKnowledge(dto);
   }
 
   @Get('paginated')
-  findAll() {
-    return this.knowledegeService.getAll();
+  // MODIFICADO: Aceptar parámetros de query para paginación y filtros
+  async findAll(@Query() query: QueryKnowledgeDto) { 
+    return this.knowledgeService.getPaginated({
+      page: query.page,
+      limit: query.limit,
+      search: query.search,
+      agentId: query.workspaceId, // Usamos workspaceId como filtro de agentId
+      category: query.category,
+    });
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.knowledegeService.getOne(id);
+    return this.knowledgeService.getOne(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: KnowledgeDto) {
-    return this.knowledegeService.update(id, dto);
+    return this.knowledgeService.update(id, dto);
   }
 
   @Delete(':id')
   delete(@Param('id') id: string) {
-    return this.knowledegeService.delete(id);
+    return this.knowledgeService.delete(id);
   }
 }

@@ -17,5 +17,9 @@ export class CreateKnowledgeDto {
   tags?: string[];
 
   @IsOptional()
+  @IsString()
+  agentId?: string; // ID del agente para asociar el conocimiento
+
+  @IsOptional()
   metadata?: Record<string, any>; // puedes dejarlo si quieres datos adicionales
 }

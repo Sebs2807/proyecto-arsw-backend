@@ -1,14 +1,9 @@
-// openai-live.service.ts
-
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AgentsService } from '../../agents/agents.service';
 import { KnowledgeService } from '../../knowledges/knowledges.service';
-import { writeFileSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
-import { createReadStream } from 'fs';
-import { encode } from 'wav-encoder';
+import { CardService } from '../../cards/cards.service';
+import { CardEntity } from 'src/database/entities/card.entity';
 
 @Injectable()
 export class OpenAILiveService {
@@ -18,120 +13,106 @@ export class OpenAILiveService {
   constructor(
     private readonly agentsService: AgentsService,
     private readonly knowledgeService: KnowledgeService,
+    @Inject(forwardRef(() => CardService))
+    private readonly cardsService: CardService,
   ) {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
   }
 
-  async generateFirstGreeting(agentId: string): Promise<string> {
+  /**
+   * Genera el primer saludo de un agente para un prospecto.
+   */
+  async generateFirstGreeting(agentId: string, cardId: string): Promise<string> {
     try {
       const agent = await this.agentsService.findOne(agentId);
+      const card: CardEntity = await this.cardsService.findOne(cardId);
 
-      // Sanitizar valores
       const agentName = agent.name ?? 'Agente Virtual';
       const flow = agent.flowConfig ?? {};
-      const boards = agent.boards ?? [];
-      const lists = agent.lists ?? [];
       const temperature = agent.temperature ?? 0.7;
       const maxTokens = agent.maxTokens ?? 120;
 
-      const knowledgeFromBoards = boards.map((b) => ({
-        id: b.id,
-        title: b.title ?? '',
-        description: b.description ?? '',
-      }));
+      // === SISTEMA PROMPT ===
+      const SYSTEM_PROMPT_GREETING = `
+Eres el agente telefónico profesional y amable **${agentName}**.
+Tu única tarea es iniciar la llamada con un saludo conciso y atractivo.
+Responde **exclusivamente** con el texto que debe decir el agente.
+`;
 
-      const knowledgeFromLists = lists.map((l) => ({
-        id: l.id,
-        title: l.title ?? '',
-        description: l.description ?? '',
-      }));
+      // Obtener conocimientos relevantes para el nodo "greeting"
+      const greetingKnowledge = await this.knowledgeService.search(5, agentId, undefined, [
+        'greeting',
+      ]);
 
-      const prompt = `
-      Eres el agente telefónico **${agentName}**.
-      El usuario acaba de contestar la llamada.
+      const knowledgeText = greetingKnowledge?.length
+        ? greetingKnowledge.map((k) => `- ${k.payload?.title}: ${k.payload?.text}`).join('\n')
+        : 'No hay conocimientos específicos para el nodo greeting.';
 
-      ### Objetivo del Agente
-      Sigue al pie de la letra el siguiente JSONFlow:
-      ${JSON.stringify(flow, null, 2)}
+      // === USER PROMPT (Contexto Dinámico) ===
+      const userPrompt = `
+### Tarea: Generar Saludo Inicial
+IMPORTANTE: *Esta llamada SIEMPRE la inicia el agente*.
 
-      ### Base de Conocimiento (Boards + Lists)
-      Úsala para contextualizar el saludo.
-      Boards:
-      ${JSON.stringify(knowledgeFromBoards, null, 2)}
+### Información del prospecto
+- Nombre: ${card.contactName ?? 'No especificado'}
+- Empresa: ${card?.title ?? 'No especificado'}
+- Industria: ${card?.industry ?? 'No especificada'}
+- Prioridad: ${card?.priority ?? 'No especificada'}
 
-      Lists:
-      ${JSON.stringify(knowledgeFromLists, null, 2)}
+### Objetivo del Saludo (Nodo: "greeting")
+- Objetivo del Flujo: ${flow?.nodes?.['greeting']?.goal || 'Saludar, presentarse y establecer el motivo de la llamada.'}
+- Instrucciones: Saluda de forma breve, amable y profesional. Personaliza usando nombre y empresa/industria. Explica claramente por qué llamas.
 
-      ### Instrucciones
-      - Genera un saludo breve y profesional.
-      - Adáptalo al flow.
-      - No menciones nada técnico.
-      - Solo produce texto.
-    `;
+### Conocimientos relevantes para el saludo:
+${knowledgeText}
+`;
 
+      // Llamada a OpenAI
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'Eres un agente telefónico profesional.' },
-          { role: 'user', content: prompt },
+          { role: 'system', content: SYSTEM_PROMPT_GREETING },
+          { role: 'user', content: userPrompt },
         ],
         temperature,
         max_tokens: maxTokens,
       });
 
-      console.log('Saludo generado por IA:', response.choices[0].message.content);
+      const greetingText = response.choices[0]?.message?.content?.trim() ?? '';
 
-      return response.choices[0].message.content ?? '';
-    } catch (err) {
-      this.logger.error('Error en generateFirstGreeting()', err);
-      return 'Hola, te habla nuestro asistente virtual. ¿En qué puedo ayudarte hoy?';
-    }
-  }
-  /**
-   * Transcribe un buffer de audio a texto usando la API de OpenAI
-   * @param audioBuffer Buffer de audio (wav, mp3, etc.)
-   * @returns texto transcrito
-   */
-  /**
-   * Transcribe un buffer de Twilio MediaStream a texto
-   * @param audioBuffer Buffer base64 -> PCM 16-bit
-   */
-  async transcribeAudio(audioBuffer: Buffer, sampleRate = 16000): Promise<string> {
-    try {
-      // Convertir PCM16 a Float32
-      const pcm16 = new Int16Array(
-        audioBuffer.buffer,
-        audioBuffer.byteOffset,
-        audioBuffer.length / 2,
-      );
-      const float32 = Float32Array.from(pcm16, (v) => v / 32768);
-
-      // Generar WAV
-      const wavData = {
-        sampleRate, // Usar el sampleRate dinámico
-        channelData: [float32], // mono
+      // Actualizar estado de la conversación en la tarjeta
+      const conversationState = {
+        currentNode: 'greeting',
+        history: [
+          ...(card.conversationState?.history ?? []),
+          {
+            node: 'greeting',
+            text: greetingText,
+            timestamp: new Date().toISOString(),
+          },
+        ],
       };
 
-      const wavBuffer = await encode(wavData);
-      const filePath = join(tmpdir(), `twilio_${Date.now()}.wav`);
-      writeFileSync(filePath, Buffer.from(wavBuffer));
+      await this.cardsService.updateConversationState(cardId, conversationState);
 
-      // Transcribir usando OpenAI Whisper
-      const transcription = await this.openai.audio.transcriptions.create({
-        file: createReadStream(filePath),
-        model: 'whisper-1',
+      // Emitir evento en tiempo real
+      this.cardsService.realtimeGateway.emitGlobalUpdate('conversation:update', {
+        cardId,
+        conversationState,
       });
 
-      return transcription.text ?? '';
-    } catch (error) {
-      this.logger.error('Error transcribiendo audio', error);
-      throw error;
+      return greetingText;
+    } catch (err) {
+      this.logger.error('Error en generateFirstGreeting()', err);
+      return 'Hola, te habla nuestro asistente virtual.';
     }
   }
 
-
+  /**
+   * Ejecuta el flujo de conversación de un agente para un mensaje entrante
+   */
   async runAgent(
     agentId: string,
     userMessage: string,
@@ -141,70 +122,72 @@ export class OpenAILiveService {
     try {
       const agent = await this.agentsService.findOne(agentId);
 
-      // 1. Retrieve relevant knowledge
-      const knowledgeResults = await this.knowledgeService.search(userMessage, 3);
+      // Obtener conocimientos relevantes
+      const knowledgeResults = await this.knowledgeService.search(3, agentId, userMessage);
       const topMatches = knowledgeResults
         .map((k) => `- ${k.payload?.title || 'Untitled'}: ${k.payload?.text || ''}`)
         .join('\n');
 
-      // 2. Construct the prompt
-      const prompt = `
-Tu rol: Eres un agente de ventas AI que sigue un flujo de llamada estructurado paso a paso.
-
-### INFORMACIÓN DEL PROSPECTO
-- Nombre: ${prospect.contactName}
-- Empresa: ${prospect.company}
-- Industria: ${prospect.industry}
-- Teléfono: ${prospect.contactPhone}
-
-### CONTEXTO DEL FLUJO
-- Nodo actual del flujo: "${conversationState.currentNode}"
-- Objetivo del nodo: "${agent.flowConfig?.nodes?.[conversationState.currentNode]?.goal || 'N/A'}"
-- Siguiente nodo: "${agent.flowConfig?.nodes?.[conversationState.currentNode]?.next || 'null'}"
-
-### CONTEXTO DE LA CONVERSACIÓN
-- Último mensaje del usuario (transcripción): "${userMessage}"
-- Embeddings relevantes encontrados (conocimiento):
-  ${topMatches}
-
-### INSTRUCCIONES
-1. **Sigue estrictamente el flujo**.
-2. La *única* razón para moverte al siguiente nodo es:
-   - Ya cumpliste el *goal* del nodo actual.
-   - O el usuario ya te dio la información necesaria.
-3. Devuelve SIEMPRE un JSON con esta estructura:
-
-{
-  "reply": "Lo que debes decir por voz",
-  "shouldMoveNext": true/false,
-  "nextNode": "nombre_del_siguiente_nodo_o_null",
-  "reason": "Explicación muy corta de por qué"
-}
-
-### TU TAREA
-Genera la respuesta al prospecto y determina si debes avanzar al siguiente nodo.
+      // === SISTEMA PROMPT ===
+      const SYSTEM_PROMPT_RUN_AGENT = `
+Eres un agente de ventas AI, profesional y directo.
+Tu tarea es simular una conversación telefónica siguiendo un flujo de pasos.
+Debes determinar si el objetivo del nodo actual se ha cumplido y si es necesario avanzar.
+Devuelve SIEMPRE un objeto JSON que cumpla **estrictamente** con el formato requerido.
 `;
 
-      // 3. Call OpenAI
+      // === USER PROMPT (Contexto Dinámico) ===
+      const userPrompt = `
+### Contexto de la Interacción
+
+1.  **Prospecto:**
+    - Nombre: ${prospect.contactName} (${prospect.company})
+    - Teléfono: ${prospect.contactPhone}
+    
+2.  **Flujo y Estado Actual:**
+    - Nodo actual: "${conversationState.currentNode}"
+    - Objetivo del nodo: "${agent.flowConfig?.nodes?.[conversationState.currentNode]?.goal || 'N/A'}"
+    - Siguiente nodo predefinido: "${agent.flowConfig?.nodes?.[conversationState.currentNode]?.next || 'null'}"
+    
+3.  **Entrada del Usuario:** "${userMessage}"
+
+4.  **Conocimientos Relevantes (Búsqueda):**
+    ${topMatches}
+
+### Reglas de Decisión
+- Sigue **estrictamente** el flujo de conversación definido por el 'Nodo actual' y su 'Objetivo'.
+- **Solo** pasa al siguiente nodo ('shouldMoveNext: true') si el objetivo del nodo actual se cumplió o si la respuesta del usuario lo hace necesario.
+
+### Formato de Salida Requerido (JSON)
+{
+  "reply": "Texto que el agente debe decir en respuesta al usuario",
+  "shouldMoveNext": true/false,
+  "nextNode": "nombre_siguiente_nodo_o_null",
+  "reason": "Explicación corta de por qué se avanza o se mantiene el nodo"
+}
+`;
+
+      // Llamada a OpenAI
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'Eres un agente de ventas AI.' },
-          { role: 'user', content: prompt },
+          { role: 'system', content: SYSTEM_PROMPT_RUN_AGENT },
+          { role: 'user', content: userPrompt },
         ],
-        temperature: agent.temperature || 0.7,
-        max_tokens: agent.maxTokens || 300,
+        temperature: agent.temperature ?? 0.7,
+        max_tokens: agent.maxTokens ?? 300,
         response_format: { type: 'json_object' },
       });
 
-      const content = response.choices[0].message.content;
-      if (!content) {
-        throw new Error('No content received from OpenAI');
-      }
+      const content = response.choices[0]?.message?.content;
+      if (!content) throw new Error('No content received from OpenAI');
 
-      return JSON.parse(content);
+      // El manejo del estado y la emisión WS se hace en el caller (RealtimeGateway)
+      const agentResponse = JSON.parse(content);
+
+      return agentResponse;
     } catch (error) {
-      this.logger.error('Error in runAgent', error);
+      this.logger.error('Error en runAgent()', error);
       throw error;
     }
   }

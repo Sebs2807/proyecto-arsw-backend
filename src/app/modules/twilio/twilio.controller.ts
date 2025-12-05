@@ -21,28 +21,25 @@ export class TwilioController {
    * Inicia la llamada Twilio hacia el número del card
    */
   @Post('call')
-  async initiateCall(@Body() body: { cardId: string; agentId: string }) {
-    const { cardId, agentId } = body;
+  async initiateCall(@Body() body: { cardId: string }) {
+    const { cardId } = body;
 
-    console.log(`Iniciando llamada Twilio — cardId: ${cardId}, agentId: ${agentId}`);
+    console.log(`Iniciando llamada Twilio — cardId: ${cardId}`);
 
     // Validar card
-    const card = await this.cardService.findOne(cardId);
+    const card = await this.cardService.findCardWithFullContext(cardId);
     if (!card || !card.contactPhone) {
       throw new Error('Card not found or no contact phone');
     }
 
-    // Validar agent
-    const agent = await this.agentsService.findOne(agentId);
-    if (!agent) {
-      throw new Error('Agent not found');
-    }
+    const agent = card.list.agent;
+    console.log(`Usando agente ${agent.name} para la llamada`);
 
     // URL pública donde Twilio obtendrá el TwiML
     const host = this.configService.get<string>('PUBLIC_URL') || 'http://localhost:3000';
     console.log(`Usando PUBLIC_URL: ${host}`);
 
-    await this.twilioService.initiateCall(card.contactPhone, agentId, host);
+    await this.twilioService.initiateCall(card.contactPhone, agent, host, card);
 
     return { message: 'Call initiated' };
   }
@@ -52,23 +49,37 @@ export class TwilioController {
    * Endpoint que devuelve TwiML para que Twilio conecte el WS
    */
   @Get('voice')
-  async handleVoice(@Req() req: Request, @Res() res: Response, @Query('agentId') agentId: string) {
+  async handleVoice(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('agentId') agentId: string,
+    @Query('cardId') cardId: string,
+  ) {
     const host =
       this.configService.get<string>('PUBLIC_URL') || `${req.protocol}://${req.get('host')}`;
-    const wsUrl = `${host.replace(/^http/, 'ws')}/ws/twilio?agentId=${agentId}`;
 
+    let agent = agentId;
     let welcomeGreeting = 'Hola, este es un saludo inicial';
+
     try {
-      if (agentId) {
-        welcomeGreeting = await this.openaiLive.generateFirstGreeting(agentId);
+      // Validar que el cardId existe
+      if (cardId) {
+        await this.cardService.findOne(cardId);
+      }
+
+      if (agentId && cardId) {
+        welcomeGreeting = await this.openaiLive.generateFirstGreeting(agentId, cardId);
       }
     } catch (err) {
-      console.error('Error generando saludo OpenAI:', err);
+      console.error('Error obteniendo contexto del card o saludo:', err);
     }
+
+    const wsUrl = `${host.replace(/^http/, 'ws')}/ws/twilio?agentId=${agentId}&cardId=${cardId}`;
 
     const twiml = this.twilioService.generateConversationRelayTwiML(
       wsUrl,
       agentId,
+      cardId,
       welcomeGreeting,
     );
 
