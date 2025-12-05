@@ -10,7 +10,7 @@ jest.mock(
       toJwt: jest.fn().mockReturnValue('mocked-jwt-token'),
     })),
   }),
-  { virtual: true }
+  { virtual: true },
 );
 
 describe('LivekitController', () => {
@@ -53,7 +53,7 @@ describe('LivekitController', () => {
 
     const result = await controller.getToken(mockRoom, mockName);
 
-    expect(service.generateToken).toHaveBeenCalledWith(mockRoom, mockName);
+    expect(service.generateToken).toHaveBeenCalledWith(mockRoom, mockName, undefined);
     expect(service.getServerUrl).toHaveBeenCalled();
     expect(result).toEqual({ token: mockToken, url: mockUrl });
   });
@@ -65,7 +65,19 @@ describe('LivekitController', () => {
     await expect(controller.getToken('roomX', 'userY')).rejects.toThrow('Error Livekit');
   });
 
-  it('debería registrar en consola el token generado (espía de console.log)', async () => {
+  it('debería delegar el displayName opcional al servicio', async () => {
+    const mockToken = 'token-xyz';
+    const mockUrl = 'https://livekit.dev';
+    jest.spyOn(service, 'generateToken').mockResolvedValue(mockToken);
+    jest.spyOn(service, 'getServerUrl').mockReturnValue(mockUrl);
+
+    const result = await controller.getToken('room-123', 'user-987', 'User Demo');
+
+    expect(service.generateToken).toHaveBeenCalledWith('room-123', 'user-987', 'User Demo');
+    expect(result).toEqual({ token: mockToken, url: mockUrl });
+  });
+
+  it('no debería registrar el token en consola', async () => {
     const mockToken = 'token-abc';
     const mockUrl = 'https://livekit.io';
     jest.spyOn(service, 'generateToken').mockResolvedValue(mockToken);
@@ -74,7 +86,7 @@ describe('LivekitController', () => {
 
     const result = await controller.getToken('room2', 'user2');
 
-    expect(consoleSpy).toHaveBeenCalledWith('Token generado:', mockToken);
+    expect(consoleSpy).not.toHaveBeenCalled();
     expect(result).toEqual({ token: mockToken, url: mockUrl });
 
     consoleSpy.mockRestore();

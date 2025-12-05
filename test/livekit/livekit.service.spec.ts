@@ -1,20 +1,24 @@
 // Mock virtual del módulo externo que no existe físicamente
-jest.mock('livekit-server-sdk', () => {
-  const mockAddGrant = jest.fn();
-  const mockToJwt = jest.fn(async () => 'mocked-jwt-token');
+jest.mock(
+  'livekit-server-sdk',
+  () => {
+    const mockAddGrant = jest.fn();
+    const mockToJwt = jest.fn(async () => 'mocked-jwt-token');
 
-  const AccessToken = jest.fn().mockImplementation((apiKey, apiSecret, options) => {
-    return {
-      apiKey,
-      apiSecret,
-      options,
-      addGrant: mockAddGrant,
-      toJwt: mockToJwt,
-    };
-  });
+    const AccessToken = jest.fn().mockImplementation((apiKey, apiSecret, options) => {
+      return {
+        apiKey,
+        apiSecret,
+        options,
+        addGrant: mockAddGrant,
+        toJwt: mockToJwt,
+      };
+    });
 
-  return { AccessToken };
-}, { virtual: true });
+    return { AccessToken };
+  },
+  { virtual: true },
+);
 
 import { LivekitService } from '../../src/livekit/livekit.service';
 import { AccessToken } from 'livekit-server-sdk';
@@ -24,10 +28,10 @@ describe('LivekitService', () => {
   const OLD_ENV = process.env;
 
   beforeAll(() => {
-  jest.spyOn(global.console, 'error').mockImplementation(() => {});
-  jest.spyOn(global.console, 'log').mockImplementation(() => {});
-  jest.spyOn(global.console, 'warn').mockImplementation(() => {});
-});
+    jest.spyOn(global.console, 'error').mockImplementation(() => {});
+    jest.spyOn(global.console, 'log').mockImplementation(() => {});
+    jest.spyOn(global.console, 'warn').mockImplementation(() => {});
+  });
 
   beforeEach(() => {
     jest.resetModules();
@@ -56,6 +60,7 @@ describe('LivekitService', () => {
     expect(AccessToken).toHaveBeenCalledTimes(1);
     expect(AccessToken).toHaveBeenCalledWith('test-key', 'test-secret', {
       identity: 'test-user',
+      name: 'test-user',
     });
 
     const instance = (AccessToken as jest.Mock).mock.results[0].value;
@@ -80,5 +85,14 @@ describe('LivekitService', () => {
 
     const brokenService = new LivekitService();
     await expect(brokenService.generateToken('room', 'user')).rejects.toThrow('fallo interno');
+  });
+
+  it('debería usar displayName cuando se proporciona', async () => {
+    await service.generateToken('sala-demo', 'user-123', 'Usuario Demo');
+
+    expect(AccessToken).toHaveBeenCalledWith('test-key', 'test-secret', {
+      identity: 'user-123',
+      name: 'Usuario Demo',
+    });
   });
 });

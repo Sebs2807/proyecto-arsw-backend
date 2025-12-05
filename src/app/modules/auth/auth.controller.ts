@@ -1,9 +1,8 @@
-import { Controller, Get, UseGuards, Req, Res } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Res, Post, Body } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { UserWorkspaceEntity } from 'src/database/entities/userworkspace.entity';
 
 interface RequestWithCookies extends Request {
   cookies: { [key: string]: string };
@@ -30,7 +29,8 @@ export class AuthController {
 
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  googleAuth() {}
+  googleAuth() {   // Este endpoint inicia el flujo OAuth con Google mediante el AuthGuard
+ }
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
@@ -97,5 +97,18 @@ export class AuthController {
       id: req.user.id,
       email: req.user.email,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  async logout(@Req() req: RequestWithUser, @Res({ passthrough: true }) res: Response, @Body('revokeGoogle') revokeGoogle?: boolean) {
+    const userId = req.user.id;
+    await this.authService.logout(userId, Boolean(revokeGoogle));
+
+    // Clear cookies if present
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+
+    return { ok: true };
   }
 }

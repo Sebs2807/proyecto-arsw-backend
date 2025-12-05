@@ -153,14 +153,16 @@ export class UsersService {
         excludeExtraneousValues: true,
       });
 
+      let workspaceMessage = '';
+
+      if (workspaceId) {
+        workspaceMessage = excludeWorkspaceMembers
+        ? `excluding workspace ${workspaceId}`
+        : `only workspace ${workspaceId}`;
+      }
+
       this.logger.log(
-        `Fetched ${transformedData.length} users (page ${page}/${Math.ceil(total / limit)}) ${
-          workspaceId
-            ? excludeWorkspaceMembers
-              ? `excluding workspace ${workspaceId}`
-              : `only workspace ${workspaceId}`
-            : ''
-        }`,
+        `Fetched ${transformedData.length} users (page ${page}/${Math.ceil(total / limit)}) ${workspaceMessage}`,
       );
 
       return {

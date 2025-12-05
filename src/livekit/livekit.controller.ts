@@ -7,10 +7,13 @@ export class LivekitController {
   constructor(private readonly livekitService: LivekitService) {}
 
   @Get('token')
-  async getToken(@Query('room') room: string, @Query('name') name: string) {
-    const token = await this.livekitService.generateToken(room, name);
-    console.log('Token generado:', token);
-    const url = this.livekitService.getServerUrl();
-    return { token, url };
+  async getToken(
+    @Query('room') room: string,
+    @Query('identity') identity: string,
+    @Query('name') displayName?: string,
+  ) {
+    const token = await this.livekitService.generateToken(room, identity, displayName);
+
+    return { token, url: this.livekitService.getServerUrl() };
   }
 }

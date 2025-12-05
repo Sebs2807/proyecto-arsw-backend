@@ -1,14 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
-import { Logger } from '@nestjs/common';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
-import { UserEntity } from 'src/database/entities/user.entity';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { UsersWorkspacesService } from '../users-workspaces/usersworkspaces.service';
 import { Role } from 'src/database/entities/userworkspace.entity';
 import { BoardsService } from '../boards/boards.service';
 import { AuthUserDto } from '../users/dtos/authUser.dto';
+import { google } from 'googleapis';
 
 interface GoogleUserPayload {
   email: string;
@@ -51,7 +50,7 @@ export class AuthService {
 
       console.log('refresh token in loginOrCreateGoogleUser:', googleRefreshToken);
 
-      if (!user) {
+      if (user == null) {
         this.logger.log(`Creating new user with email: ${email}`);
 
         const newUser = await this.usersService.createUser({
@@ -148,7 +147,7 @@ export class AuthService {
       }
 
       const user = await this.userDbService.findById(payload.id);
-      if (!user || user.JWTRefreshToken !== refreshToken) {
+      if (user == null || user?.JWTRefreshToken !== refreshToken) {
         throw new UnauthorizedException('Refresh token inválido o expirado');
       }
 
@@ -170,6 +169,37 @@ export class AuthService {
       const error = err as Error;
       this.logger.error(`Error refreshing token: ${error.message}`, error.stack);
       throw new UnauthorizedException('No se pudo refrescar el token');
+    }
+  }
+
+  async logout(userId: string, revokeGoogle = false) {
+    try {
+      const user = await this.userDbService.findById(userId);
+      if (!user) return { ok: true };
+
+      // Remove stored JWT refresh token
+      user.JWTRefreshToken = null;
+
+      // Optionally revoke Google refresh token and remove it
+      if (revokeGoogle && user.googleRefreshToken) {
+        try {
+          const oAuth2Client = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+          );
+          // revokeToken expects an access_token or refresh_token
+          await oAuth2Client.revokeToken(user.googleRefreshToken as string);
+        } catch (err) {
+          this.logger.warn('Failed to revoke Google token during logout', err as Error);
+        }
+        user.googleRefreshToken = null;
+      }
+
+      await this.userDbService.repository.save(user);
+      return { ok: true };
+    } catch (err) {
+      this.logger.error('Error during logout', err as Error);
+      throw err;
     }
   }
 }
