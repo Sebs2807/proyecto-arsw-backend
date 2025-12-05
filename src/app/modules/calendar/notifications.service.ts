@@ -14,9 +14,12 @@ export type Notification = {
 @Injectable()
 export class NotificationsService {
   // In-memory store: userId -> Notification[]
-  private store = new Map<string, Notification[]>();
+  private readonly store = new Map<string, Notification[]>();
 
-  createForUser(userId: string, items: Array<{ eventId?: string; summary?: string; start?: string }>) {
+  createForUser(
+    userId: string,
+    items: Array<{ eventId?: string; summary?: string; start?: string }>,
+  ) {
     const now = new Date().toISOString();
     const list = this.store.get(userId) || [];
 

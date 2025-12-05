@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, IsArray, ArrayNotEmpty } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsArray } from 'class-validator';
 import * as knowledgesController from '../knowledges.controller';
 
 export class CreateKnowledgeDto {

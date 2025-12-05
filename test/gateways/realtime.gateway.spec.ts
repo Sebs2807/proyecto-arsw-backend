@@ -1,11 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RealtimeGateway } from '../../src/gateways/realtime.gateway';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
 import { OpenAILiveService } from 'src/app/modules/ai/services/openAi-live.service';
 import { CardService } from 'src/app/modules/cards/cards.service';
-import { Logger } from '@nestjs/common'; // Importamos Logger para propósitos de tipado
 
-// 1. Define mock implementations for the required services
 const mockOpenAILiveService = {
   // Add necessary mocked methods here if they are used in the Gateway methods being tested
 };

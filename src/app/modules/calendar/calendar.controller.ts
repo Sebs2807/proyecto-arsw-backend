@@ -17,6 +17,8 @@ import { CreateEventDto } from './dtos/createEvent.dto';
 import { RescheduleEventDto } from './dtos/rescheduleEvent.dto';
 import type { Request } from 'express';
 
+type CalendarDateType = { dateTime: string } | { date: string };
+
 @Controller({ path: 'calendar', version: '1' })
 export class CalendarController {
   constructor(private readonly calendarService: CalendarService) {}
@@ -27,7 +29,7 @@ export class CalendarController {
     @Req() req: Request,
     @Query('start') start: string,
     @Query('end') end: string,
-    @Query('range') range?: '24h' | '7d' | string,
+    @Query('range') range?: string,
   ) {
     const user = req.user as { id: string; email: string };
 
@@ -62,8 +64,8 @@ export class CalendarController {
       attendees = body.attendees.map((a: any) => (typeof a === 'string' ? a : a.email));
     }
 
-    let start: { dateTime: string } | { date: string } | undefined;
-    let end: { dateTime: string } | { date: string } | undefined;
+    let start: CalendarDateType | undefined;
+    let end: CalendarDateType | undefined;
 
     if (body.startDateTime) start = { dateTime: body.startDateTime };
     else if (body.startDate) start = { date: body.startDate };

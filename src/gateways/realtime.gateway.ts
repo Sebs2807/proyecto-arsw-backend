@@ -11,14 +11,9 @@ import * as WebSocket from 'ws';
 import { OpenAILiveService } from 'src/app/modules/ai/services/openAi-live.service';
 import { CardService } from 'src/app/modules/cards/cards.service';
 
-// Definición de tipos para mejorar la claridad
 interface ConversationState {
   currentNode: string;
-  history: Array<{
-    node: string;
-    text: string;
-    timestamp: string;
-  }>;
+  history: Array<{ node: string; text: string; timestamp: string }>;
 }
 
 interface Prospect {
@@ -28,11 +23,7 @@ interface Prospect {
   contactPhone: string;
 }
 
-// ----------------------------------------------------
-
-@WebSocketGateway({
-  cors: { origin: '*' },
-})
+@WebSocketGateway({ cors: { origin: '*' } })
 @Injectable()
 export class RealtimeGateway {
   private readonly logger = new Logger(RealtimeGateway.name);
@@ -42,11 +33,9 @@ export class RealtimeGateway {
 
   private readonly twilioWSServer: WebSocket.Server;
 
-  // === ESTADO DE DEBOUNCING ===
   private debounceTimer: NodeJS.Timeout | null = null;
   private userTextBuffer: string[] = [];
-  private readonly DEBOUNCE_DELAY_MS = 500; // 500ms de pausa para consolidar fragmentos
-  // =============================
+  private readonly DEBOUNCE_DELAY_MS = 500;
 
   constructor(
     private readonly openaiLive: OpenAILiveService,
@@ -56,126 +45,165 @@ export class RealtimeGateway {
     this.twilioWSServer = new WebSocket.Server({ noServer: true });
   }
 
-  /**
-   * ================= TWILIO MEDIA STREAMS ===================
-   * Endpoint: ws://server/ws/twilio?agentId=XYZ
-   */
+  // ===================================================
+  //   TWILIO: MÉTODOS DE MANEJO DE EVENTOS
+  // ===================================================
+
+  private async loadCardState(cardId: string) {
+    const card = await this.cardsService.findOne(cardId);
+
+    const conversationState = (card.conversationState as ConversationState) ?? {
+      currentNode: 'START',
+      history: [],
+    };
+
+    const prospect: Prospect = {
+      contactName: card.contactName || 'Prospecto',
+      company: card.title || 'Empresa',
+      industry: card.industry || 'No especificada',
+      contactPhone: card.contactPhone || 'No especificado',
+    };
+
+    return { conversationState, prospect };
+  }
+
+  private async handleSetupEvent(
+    data: any,
+    current: {
+      agentId: string | null;
+      cardId: string | null;
+      conversationState: ConversationState;
+      prospect: Prospect;
+    },
+  ) {
+    if (data.customParameters?.agentId) {
+      current.agentId = data.customParameters.agentId;
+      this.logger.log(`AgentId configurado: ${current.agentId}`);
+    }
+
+    if (data.customParameters?.cardId) {
+      current.cardId = data.customParameters.cardId;
+      this.logger.log(`CardId configurado: ${current.cardId}`);
+
+      try {
+        if (current.cardId === null) {
+          this.logger.error('CardId es null, no se puede cargar el estado.');
+        } else {
+          const loaded = await this.loadCardState(current.cardId);
+          current.conversationState = loaded.conversationState;
+          current.prospect = loaded.prospect;
+
+          this.logger.log(`Estado cargado: ${current.conversationState.currentNode}`);
+        }
+      } catch (error) {
+        this.logger.error('Error cargando card:', error);
+      }
+    }
+  }
+
+  private handleStartEvent(data: any, ref: { streamSid: string | null }) {
+    if (data.streamSid) {
+      ref.streamSid = data.streamSid;
+      this.logger.log(`Stream iniciado: ${ref.streamSid}`);
+    }
+  }
+
+  private handlePromptEvent(data: any, ws: WebSocket) {
+    const userText = data.voicePrompt;
+    this.logger.log(`Fragmento usuario: "${userText}"`);
+
+    this.userTextBuffer.push(userText);
+
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+
+    this.debounceTimer = setTimeout(() => {
+      // Se procesa después del delay
+      ws.emit('process');
+    }, this.DEBOUNCE_DELAY_MS);
+  }
+
+  private handleInterruptEvent(ws: WebSocket) {
+    this.logger.log('Usuario interrumpió al agente');
+
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      ws.emit('process');
+    }
+  }
+
+  // ===================================================
+  //  REGISTRAR WS DE TWILIO - AHORA SIMPLE
+  // ===================================================
+
   registerTwilioWS(server: any) {
     server.on('upgrade', (req, socket, head) => {
       if (req.url?.startsWith('/ws/twilio')) {
-        this.twilioWSServer.handleUpgrade(req, socket, head, (ws) => {
-          this.twilioWSServer.emit('connection', ws, req);
-        });
+        this.twilioWSServer.handleUpgrade(req, socket, head, (ws) =>
+          this.twilioWSServer.emit('connection', ws, req),
+        );
       }
     });
 
     this.twilioWSServer.on('connection', async (ws: WebSocket, req) => {
-      console.log(`Twilio ConversationRelay conectado`);
+      this.logger.log('Twilio conectado');
 
-      let agentId: string | null = null;
-      let cardId: string | null = null;
-      let streamSid: string | null = null;
-      let conversationState: ConversationState = { currentNode: 'START', history: [] };
-      let prospect: Prospect = {
-        contactName: 'Juan Perez',
-        company: 'Empresa X',
-        industry: 'Tecnología',
-        contactPhone: '+573001234567',
+      const context = {
+        agentId: null as string | null,
+        cardId: null as string | null,
+        streamSid: null as string | null,
+        conversationState: { currentNode: 'START', history: [] } as ConversationState,
+        prospect: {
+          contactName: 'Juan Perez',
+          company: 'Empresa X',
+          industry: 'Tecnología',
+          contactPhone: '+573001234567',
+        } as Prospect,
       };
 
-      ws.on('message', async (msg: string) => {
+      ws.on('process', () =>
+        this.processConsolidatedPrompt(
+          ws,
+          context.agentId,
+          context.cardId,
+          context.conversationState,
+          context.prospect,
+        ),
+      );
+
+      ws.on('message', async (raw: string) => {
         try {
-          const data = JSON.parse(msg);
-          console.log('Twilio Event:', JSON.stringify(data, null, 2));
+          const data = JSON.parse(raw);
 
           switch (data.type) {
             case 'setup':
-              console.log('Setup Event:', data);
-              if (data.customParameters?.agentId) {
-                agentId = data.customParameters.agentId;
-                console.log(`AgentId configurado desde setup: ${agentId}`);
-              }
-              if (data.customParameters?.cardId) {
-                cardId = data.customParameters.cardId;
-                console.log(`CardId configurado desde setup: ${cardId}`);
-
-                // Cargar el estado de conversación y prospecto
-                try {
-                  if (cardId) {
-                    const card = await this.cardsService.findOne(cardId);
-
-                    if (card.conversationState) {
-                      conversationState = card.conversationState as ConversationState;
-                      console.log(
-                        `📂 Estado de conversación cargado: ${conversationState.currentNode}`,
-                      );
-                    }
-
-                    prospect = {
-                      contactName: card.contactName || 'Prospecto',
-                      company: card.title || 'Empresa',
-                      industry: card.industry || 'No especificada',
-                      contactPhone: card.contactPhone || 'No especificado',
-                    };
-                    console.log(`Prospecto cargado: ${prospect.contactName}`);
-                  }
-                } catch (err) {
-                  console.error('Error cargando card:', err);
-                }
-              }
+              await this.handleSetupEvent(data, context);
               break;
 
             case 'start':
-              if (data.streamSid) streamSid = data.streamSid;
-              console.log(`Stream iniciado: ${streamSid}`);
+              this.handleStartEvent(data, context);
               break;
 
-            case 'prompt': {
-              // === LÓGICA DE DEBOUNCING APLICADA ===
-              const userText = data.voicePrompt;
-              console.log(`Fragmento de Usuario: "${userText}"`);
-
-              this.userTextBuffer.push(userText); // Agregar al buffer
-
-              if (this.debounceTimer) {
-                clearTimeout(this.debounceTimer);
-              }
-
-              // Iniciar el temporizador de debouncing
-              this.debounceTimer = setTimeout(() => {
-                this.processConsolidatedPrompt(ws, agentId, cardId, conversationState, prospect);
-              }, this.DEBOUNCE_DELAY_MS);
-              // ======================================
+            case 'prompt':
+              this.handlePromptEvent(data, ws);
               break;
-            }
 
             case 'interrupt':
-              console.log('Usuario interrumpió al agente');
-              // Si hay interrupción, procesamos inmediatamente lo que esté en el buffer
-              if (this.debounceTimer) {
-                clearTimeout(this.debounceTimer);
-                this.processConsolidatedPrompt(ws, agentId, cardId, conversationState, prospect);
-              }
-              break;
-
-            default:
-              // console.log('Evento no manejado:', data.type);
+              this.handleInterruptEvent(ws);
               break;
           }
-        } catch (err) {
-          console.error('Error WS Twilio:', err);
+        } catch (error) {
+          this.logger.error('Error WS Twilio:', error);
         }
       });
 
-      ws.on('close', () => {
-        console.log('Twilio WS desconectado');
-      });
+      ws.on('close', () => this.logger.log('Twilio WS desconectado'));
     });
   }
 
-  /**
-   * Procesa el texto consolidado del usuario después de que el debouncing expira.
-   */
+  // ===================================================
+  //   PROCESAR TEXTO DEL USUARIO (IGUAL QUE TU LÓGICA)
+  // ===================================================
+
   private async processConsolidatedPrompt(
     ws: WebSocket,
     agentId: string | null,
@@ -183,92 +211,52 @@ export class RealtimeGateway {
     conversationState: ConversationState,
     prospect: Prospect,
   ) {
-    // 1. Consolidar y limpiar el buffer
-    const consolidatedUserText = this.userTextBuffer.join(' ').trim();
+    const consolidated = this.userTextBuffer.join(' ').trim();
+
     this.userTextBuffer = [];
-    this.debounceTimer = null; // Resetear temporizador
+    this.debounceTimer = null;
 
-    if (!consolidatedUserText) return;
+    if (!consolidated) return;
 
-    console.log(`Procesando texto consolidado: "${consolidatedUserText}"`);
+    this.logger.log(`Procesando texto: "${consolidated}"`);
 
-    // Verificaciones de estado
-    if (!agentId) {
-      this.logger.warn('No agentId received yet - cannot run AI');
-      return;
-    }
+    if (!agentId) return;
 
-    if (!cardId) {
-      this.logger.warn('No cardId received - conversation state will not be persisted');
-    }
-
-    // Llamar a la IA
-    let agentResponse: { reply: string; shouldMoveNext: boolean; nextNode: string };
+    let response;
     try {
-      agentResponse = await this.openaiLive.runAgent(
-        agentId,
-        consolidatedUserText, // Usamos el texto consolidado
-        conversationState,
-        prospect,
+      response = await this.openaiLive.runAgent(agentId, consolidated, conversationState, prospect);
+    } catch (e) {
+      this.logger.error(e);
+      ws.send(
+        JSON.stringify({
+          type: 'text',
+          token: 'Lo siento, ocurrió un error.',
+          last: true,
+        }),
       );
-    } catch (error) {
-      this.logger.error('Error llamando a la IA:', error);
-      const errorMessage = {
-        type: 'text',
-        token:
-          'Lo siento, estoy teniendo problemas técnicos. Por favor, intenta de nuevo en un momento.',
-        last: true,
-      };
-      ws.send(JSON.stringify(errorMessage));
       return;
     }
 
-    console.log('Respuesta IA (RAW):', agentResponse.reply);
-
-    // Limpiar el texto de la IA
-    const safeReply = agentResponse.reply.replace(/[\u0000-\u001f]/g, '').trim();
-
-    console.log('Respuesta IA (CLEAN):', safeReply);
-
-    // Actualizar estado en memoria
-    if (agentResponse.shouldMoveNext && agentResponse.nextNode) {
-      conversationState.currentNode = agentResponse.nextNode;
+    if (response.shouldMoveNext && response.nextNode) {
+      conversationState.currentNode = response.nextNode;
     }
 
-    // Agregar al historial (usando la respuesta limpia)
-    conversationState.history = [
-      ...(conversationState.history || []),
-      {
-        node: conversationState.currentNode,
-        text: safeReply,
-        timestamp: new Date().toISOString(),
-      },
-    ];
+    conversationState.history.push({
+      node: conversationState.currentNode,
+      text: response.reply,
+      timestamp: new Date().toISOString(),
+    });
 
-    // Persistir el estado actualizado en la base de datos
     if (cardId) {
-      try {
-        await this.cardsService.updateConversationState(cardId, conversationState);
-        console.log(`Estado persistido en DB para card ${cardId}`);
+      await this.cardsService.updateConversationState(cardId, conversationState);
 
-        // Emitir actualización en tiempo real
-        this.server.emit('conversation:update', {
-          cardId,
-          conversationState,
-        });
-      } catch (err) {
-        this.logger.error('Error persistiendo estado:', err);
-      }
+      this.server.emit('conversation:update', {
+        cardId,
+        conversationState,
+      });
     }
 
-    // Enviar respuesta de texto a Twilio para que ElevenLabs la hable
-    const replyMessage = {
-      type: 'text',
-      token: safeReply,
-      last: true,
-    };
-
-    ws.send(JSON.stringify(replyMessage));
+    ws.send(JSON.stringify({ type: 'text', token: response.reply, last: true }));
   }
 
   // === MÉTODOS EXISTENTES DE SOCKET.IO ===

@@ -28,7 +28,7 @@ export class TwilioController {
 
     // Validar card
     const card = await this.cardService.findCardWithFullContext(cardId);
-    if (!card || !card.contactPhone) {
+    if (!card?.contactPhone) {
       throw new Error('Card not found or no contact phone');
     }
 
@@ -58,7 +58,6 @@ export class TwilioController {
     const host =
       this.configService.get<string>('PUBLIC_URL') || `${req.protocol}://${req.get('host')}`;
 
-    let agent = agentId;
     let welcomeGreeting = 'Hola, este es un saludo inicial';
 
     try {
