@@ -227,7 +227,6 @@ describe('AppModule (mocked)', () => {
     const module = await Test.createTestingModule({
       imports: [AppModule],
     })
-      // 🚀 Anulación del proveedor para evitar la inicialización de OpenAI
       .overrideProvider(EmbeddingService)
       .useValue(mockEmbeddingService)
       .compile();

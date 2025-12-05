@@ -17,7 +17,7 @@ export class OpenAILiveService {
     private readonly cardsService: CardService,
   ) {
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: process.env.OPENAI_API_KEY || '',
     });
   }
 
