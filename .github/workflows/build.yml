@@ -80,3 +80,33 @@ jobs:
             -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/main.ts,**/dist/**" \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.verbose=true
+
+    deploy_to_acr:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Azure Login with Credentials
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build & Push Docker Image
+        run: |
+          ACR="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE_NAME="synapse-frontend"
+          TAG="${GITHUB_SHA::7}"
+
+          docker build -t $ACR/$IMAGE_NAME:$TAG .
+          docker push $ACR/$IMAGE_NAME:$TAG
+
+          docker tag $ACR/$IMAGE_NAME:$TAG $ACR/$IMAGE_NAME:latest
+          docker push $ACR/$IMAGE_NAME:latest
+
