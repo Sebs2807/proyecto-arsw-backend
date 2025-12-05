@@ -1,18 +1,12 @@
-// ai.module.ts (CORRECTED)
-import { forwardRef, Module } from '@nestjs/common'; // <-- Import forwardRef
+import { forwardRef, Module } from '@nestjs/common';
 import { EmbeddingService } from './services/embeding-model.service';
 import { OpenAILiveService } from './services/openAi-live.service';
 import { AgentsModule } from '../agents/agents.module';
 import { KnowledgeModule } from '../knowledges/knowledges.modules';
-import { CardModule } from '../cards/cards.module'; // <-- Import CardModule
+import { CardModule } from '../cards/cards.module';
 
 @Module({
-  imports: [
-    AgentsModule,
-    KnowledgeModule,
-    // CRITICAL: Import CardModule using forwardRef
-    forwardRef(() => CardModule),
-  ],
+  imports: [AgentsModule, KnowledgeModule, forwardRef(() => CardModule)],
   providers: [EmbeddingService, OpenAILiveService],
   exports: [EmbeddingService, OpenAILiveService],
 })

@@ -10,7 +10,6 @@ import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import * as WebSocket from 'ws';
 import { OpenAILiveService } from 'src/app/modules/ai/services/openAi-live.service';
 import { CardService } from 'src/app/modules/cards/cards.service';
-import { last } from 'rxjs'; // La importación 'last' de rxjs es innecesaria aquí, se elimina si no se usa.
 
 // Definición de tipos para mejorar la claridad
 interface ConversationState {
@@ -41,7 +40,7 @@ export class RealtimeGateway {
   @WebSocketServer()
   server: IOServer;
 
-  private twilioWSServer: WebSocket.Server;
+  private readonly twilioWSServer: WebSocket.Server;
 
   // === ESTADO DE DEBOUNCING ===
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -131,7 +130,7 @@ export class RealtimeGateway {
               console.log(`Stream iniciado: ${streamSid}`);
               break;
 
-            case 'prompt':
+            case 'prompt': {
               // === LÓGICA DE DEBOUNCING APLICADA ===
               const userText = data.voicePrompt;
               console.log(`Fragmento de Usuario: "${userText}"`);
@@ -148,6 +147,7 @@ export class RealtimeGateway {
               }, this.DEBOUNCE_DELAY_MS);
               // ======================================
               break;
+            }
 
             case 'interrupt':
               console.log('Usuario interrumpió al agente');

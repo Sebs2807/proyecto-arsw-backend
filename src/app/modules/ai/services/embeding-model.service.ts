@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 
 @Injectable()
 export class EmbeddingService {
-  private openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  private readonly openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   async generate(text: string): Promise<number[]> {
     const response = await this.openai.embeddings.create({

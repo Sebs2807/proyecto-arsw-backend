@@ -5,11 +5,17 @@ import * as fs from 'fs';
 
 // --- Minimal valid Nest modules for scanner ---
 @Module({}) class MockAuthModule {}
-@Module({}) class MockDatabaseModule {}
+
 @Module({}) class MockUsersModule {}
 @Module({}) class MockBoardsModule {}
 @Module({}) class MockListsModule {}
-@Module({}) class MockCardModule {}
+jest.mock('../src/app/modules/cards/cards.service', () => ({ CardService: class {} }));
+const { CardService } = require('../src/app/modules/cards/cards.service');
+
+@Module({
+  providers: [CardService],
+  exports: [CardService],
+}) class MockCardModule {}
 @Module({}) class MockWorkspacesModule {}
 @Module({}) class MockUsersWorkspacesModule {}
 @Module({}) class MockCalendarModule {} 
@@ -42,19 +48,77 @@ jest.mock('@nestjs/typeorm', () => ({
   TypeOrmModule: {
     forRoot: forRootMock,
     forRootAsync: forRootAsyncMock,
-    forFeature: jest.fn(),
+    forFeature: jest.fn(() => ({ module: class {} })),
   },
+  InjectRepository: jest.fn(() => jest.fn()),
 }));
 
 // --- ✅ Mock fs and node:fs ---
-jest.mock('fs', () => ({
-  readFileSync: jest.fn(() => 'FAKE_CA_PEM'),
-  existsSync: jest.fn(() => true),
-}));
-jest.mock('node:fs', () => ({
-  readFileSync: jest.fn(() => 'FAKE_CA_PEM'),
-  existsSync: jest.fn(() => true),
-}));
+// --- ✅ Mock fs and node:fs ---
+jest.mock('fs', () => {
+  const originalFs = jest.requireActual('fs');
+  return {
+    ...originalFs,
+    readFileSync: jest.fn((path, options) => {
+      if (path && path.toString().includes('ca-cert.pem')) return 'FAKE_CA_PEM';
+      return originalFs.readFileSync(path, options);
+    }),
+    existsSync: jest.fn((path) => {
+      if (path && path.toString().includes('ca-cert.pem')) return true;
+      return originalFs.existsSync(path);
+    }),
+  };
+});
+
+jest.mock('node:fs', () => {
+  const originalFs = jest.requireActual('node:fs');
+  return {
+    ...originalFs,
+    readFileSync: jest.fn((path, options) => {
+      if (path && path.toString().includes('ca-cert.pem')) return 'FAKE_CA_PEM';
+      return originalFs.readFileSync(path, options);
+    }),
+    existsSync: jest.fn((path) => {
+      if (path && path.toString().includes('ca-cert.pem')) return true;
+      return originalFs.existsSync(path);
+    }),
+  };
+});
+
+// --- Mock DB Services ---
+jest.mock('../src/database/dbservices/agents.dbservice', () => ({ AgentsDBService: class {} }));
+jest.mock('../src/database/dbservices/boards.dbservice', () => ({ BoardsDBService: class {} }));
+jest.mock('../src/database/dbservices/lists.dbservice', () => ({ ListsDBService: class {} }));
+jest.mock('../src/database/dbservices/workspaces.dbservice', () => ({ WorkspacesDBService: class {} }));
+jest.mock('../src/database/dbservices/users.dbservice', () => ({ UsersDBService: class {} }));
+jest.mock('../src/database/dbservices/usersworkspaces.dbservice', () => ({ UsersWorkspacesDBService: class {} }));
+
+const { AgentsDBService } = require('../src/database/dbservices/agents.dbservice');
+const { BoardsDBService } = require('../src/database/dbservices/boards.dbservice');
+const { ListsDBService } = require('../src/database/dbservices/lists.dbservice');
+const { WorkspacesDBService } = require('../src/database/dbservices/workspaces.dbservice');
+const { UsersDBService } = require('../src/database/dbservices/users.dbservice');
+const { UsersWorkspacesDBService } = require('../src/database/dbservices/usersworkspaces.dbservice');
+
+@Module({
+  providers: [
+    AgentsDBService,
+    BoardsDBService,
+    ListsDBService,
+    WorkspacesDBService,
+    UsersDBService,
+    UsersWorkspacesDBService,
+  ],
+  exports: [
+    AgentsDBService,
+    BoardsDBService,
+    ListsDBService,
+    WorkspacesDBService,
+    UsersDBService,
+    UsersWorkspacesDBService,
+  ],
+})
+class MockDatabaseModule {}
 
 jest.mock('../src/app/modules/auth/auth.module', () => ({ AuthModule: MockAuthModule }));
 jest.mock('../src/database/database.module', () => ({ DatabaseModule: MockDatabaseModule }));

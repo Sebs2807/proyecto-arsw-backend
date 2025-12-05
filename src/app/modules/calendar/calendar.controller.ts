@@ -27,7 +27,7 @@ export class CalendarController {
     @Req() req: Request,
     @Query('start') start: string,
     @Query('end') end: string,
-    @Query('range') range?: '24h' | '7d' | string,
+    @Query('range') range?: string,
   ) {
     const user = req.user as { id: string; email: string };
 
@@ -102,7 +102,11 @@ export class CalendarController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('google-events/:id')
-  async rescheduleGoogleEvent(@Req() req: Request, @Param('id') id: string, @Body() body: RescheduleEventDto) {
+  async rescheduleGoogleEvent(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: RescheduleEventDto,
+  ) {
     const user = req.user as { id: string; email: string };
 
     let start: { dateTime: string } | { date: string } | undefined;
@@ -115,7 +119,9 @@ export class CalendarController {
     else if (body.endDate) end = { date: body.endDate };
 
     if (!start || !end) {
-      throw new BadRequestException('Se requiere startDateTime/startDate y endDateTime/endDate para reagendar');
+      throw new BadRequestException(
+        'Se requiere startDateTime/startDate y endDateTime/endDate para reagendar',
+      );
     }
 
     const updated = await this.calendarService.updateEventForUser(user.id, id, { start, end });

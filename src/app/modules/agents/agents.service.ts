@@ -11,8 +11,6 @@ import { plainToInstance } from 'class-transformer';
 import { In } from 'typeorm';
 
 import { AgentEntity } from '../../../database/entities/agent.entity';
-import { BoardEntity } from 'src/database/entities/board.entity';
-import { ListEntity } from 'src/database/entities/list.entity';
 
 import { AgentsDBService } from 'src/database/dbservices/agents.dbservice';
 import { BoardsDBService } from 'src/database/dbservices/boards.dbservice';
@@ -147,50 +145,26 @@ export class AgentsService {
         throw new NotFoundException(`Agent with ID "${id}" not found.`);
       }
 
-      if (updateData.name !== undefined) agent.name = updateData.name;
-      if (updateData.temperature !== undefined) agent.temperature = updateData.temperature;
-      if (updateData.maxTokens !== undefined) agent.maxTokens = updateData.maxTokens;
-      if (updateData.flowConfig !== undefined) agent.flowConfig = updateData.flowConfig;
+      // 1. Aplicar actualizaciones de propiedades directas
+      this.applyDirectUpdates(agent, updateData);
 
+      // 2. Aplicar actualización de Workspace (Validación y Asignación)
       if (updateData.workspaceId !== undefined) {
-        const workspace = await this.workspacesDbService.repository.findOne({
-          where: { id: updateData.workspaceId },
-        });
-
-        if (!workspace) {
-          throw new NotFoundException(`Workspace with ID "${updateData.workspaceId}" not found.`);
-        }
-
-        if (updateData.workspaceId !== undefined) {
-          const workspace = await this.workspacesDbService.repository.findOne({
-            where: { id: updateData.workspaceId },
-          });
-
-          if (!workspace) {
-            throw new NotFoundException(`Workspace with ID "${updateData.workspaceId}" not found.`);
-          }
-
-          agent.workspace = workspace;
-        }
+        agent.workspace = await this.validateAndGetWorkspace(updateData.workspaceId);
       }
 
-      if (updateData.boardIds !== undefined) {
-        agent.boards =
-          updateData.boardIds.length > 0
-            ? await this.boardsDbService.repository.findBy({ id: In(updateData.boardIds) })
-            : [];
-      }
-
-      if (updateData.listIds !== undefined) {
-        agent.lists =
-          updateData.listIds.length > 0
-            ? await this.listsDbService.repository.findBy({ id: In(updateData.listIds) })
-            : [];
-      }
+      // 3. Aplicar actualizaciones de relaciones
+      await this.updateRelatedEntities(agent, updateData);
 
       return await this.agentsDbService.repository.save(agent);
     } catch (error) {
+      // Manejo de errores centralizado
       this.logger.error('Error updating agent:', error);
+
+      // Si ya es una NotFoundException, relanzarla.
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Failed to update agent.');
     }
   }
@@ -203,5 +177,48 @@ export class AgentsService {
     }
 
     return { deleted: true };
+  }
+
+  private applyDirectUpdates(agent: AgentEntity, updateData: UpdateAgentDto): void {
+    if (updateData.name !== undefined) agent.name = updateData.name;
+    if (updateData.temperature !== undefined) agent.temperature = updateData.temperature;
+    if (updateData.maxTokens !== undefined) agent.maxTokens = updateData.maxTokens;
+    if (updateData.flowConfig !== undefined) agent.flowConfig = updateData.flowConfig;
+  }
+
+  /**
+   * Fetches and validates the new Workspace entity.
+   */
+  private async validateAndGetWorkspace(workspaceId: string): Promise<any> {
+    const workspace = await this.workspacesDbService.repository.findOne({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with ID "${workspaceId}" not found.`);
+    }
+    return workspace;
+  }
+
+  /**
+   * Updates board and list relations if their respective IDs are provided in the DTO.
+   */
+  private async updateRelatedEntities(
+    agent: AgentEntity,
+    updateData: UpdateAgentDto,
+  ): Promise<void> {
+    if (updateData.boardIds !== undefined) {
+      agent.boards =
+        updateData.boardIds.length > 0
+          ? await this.boardsDbService.repository.findBy({ id: In(updateData.boardIds) })
+          : [];
+    }
+
+    if (updateData.listIds !== undefined) {
+      agent.lists =
+        updateData.listIds.length > 0
+          ? await this.listsDbService.repository.findBy({ id: In(updateData.listIds) })
+          : [];
+    }
   }
 }

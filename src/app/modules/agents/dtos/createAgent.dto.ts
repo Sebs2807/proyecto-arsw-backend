@@ -49,8 +49,8 @@ export class CreateAgentDto {
   })
   @IsOptional()
   @IsNumber({}, { message: 'La temperatura debe ser un número.' })
-  @Min(0.0)
-  @Max(2.0)
+  @Min(0)
+  @Max(2)
   readonly temperature?: number = 0.6;
 
   @ApiProperty({

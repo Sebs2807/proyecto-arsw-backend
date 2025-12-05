@@ -9,7 +9,6 @@ import {
   Patch,
   Delete,
   UseGuards,
-  Req,
   Query,
 } from '@nestjs/common';
 

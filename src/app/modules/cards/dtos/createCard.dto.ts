@@ -100,4 +100,15 @@ export class CreateCardDto {
   @IsDateString()
   @Expose()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Estado de la tarjeta',
+    example: 'new',
+    enum: ['new', 'in_progress', 'completed', 'archived'],
+    default: 'new',
+  })
+  @IsOptional()
+  @IsIn(['new', 'in_progress', 'completed', 'archived'])
+  @Expose()
+  status?: 'new' | 'in_progress' | 'completed' | 'archived' = 'new';
 }

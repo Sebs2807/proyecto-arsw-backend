@@ -125,7 +125,17 @@ ${knowledgeText}
       // Obtener conocimientos relevantes
       const knowledgeResults = await this.knowledgeService.search(3, agentId, userMessage);
       const topMatches = knowledgeResults
-        .map((k) => `- ${k.payload?.title || 'Untitled'}: ${k.payload?.text || ''}`)
+        .map((k) => {
+          let text: string;
+          if (typeof k.payload?.text === 'string') {
+            text = k.payload.text;
+          } else if (k.payload?.text) {
+            text = JSON.stringify(k.payload.text);
+          } else {
+            text = '';
+          }
+          return `- ${typeof k.payload?.title === 'string' ? k.payload.title : 'Untitled'}: ${text}`;
+        })
         .join('\n');
 
       // === SISTEMA PROMPT ===

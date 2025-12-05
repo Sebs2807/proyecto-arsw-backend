@@ -9,7 +9,7 @@ export class UpdateCardDto {
   })
   @IsOptional()
   @IsString()
-  @Length(1, 150)
+  @Length(1, 100)
   @Expose()
   title?: string;
 
@@ -19,7 +19,7 @@ export class UpdateCardDto {
   })
   @IsOptional()
   @IsString()
-  @Length(0, 2000)
+  @Length(0, 500)
   @Expose()
   description?: string;
 
@@ -90,4 +90,14 @@ export class UpdateCardDto {
   @Length(0, 100)
   @Expose()
   industry?: string;
+
+  @ApiPropertyOptional({
+    description: 'Estado actualizado de la tarjeta',
+    example: 'in_progress',
+    enum: ['new', 'in_progress', 'completed', 'archived'],
+  })
+  @IsOptional()
+  @IsIn(['new', 'in_progress', 'completed', 'archived'])
+  @Expose()
+  status?: 'new' | 'in_progress' | 'completed' | 'archived';
 }
