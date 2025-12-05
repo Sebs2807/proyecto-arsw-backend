@@ -27,7 +27,7 @@ export class CalendarController {
     @Req() req: Request,
     @Query('start') start: string,
     @Query('end') end: string,
-    @Query('range') range?: string,
+    @Query('range') range?: '24h' | '7d' | string,
   ) {
     const user = req.user as { id: string; email: string };
 

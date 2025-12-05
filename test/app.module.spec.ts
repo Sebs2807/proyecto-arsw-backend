@@ -3,46 +3,58 @@ import { Module, DynamicModule } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as fs from 'fs';
 
-// --- Minimal valid Nest modules for scanner ---
-@Module({}) class MockAuthModule {}
+// 🚨 Importación del servicio que está causando el fallo
+import { EmbeddingService } from '../src/app/modules/ai/services/embeding-model.service';
 
-@Module({}) class MockUsersModule {}
-@Module({}) class MockBoardsModule {}
-@Module({}) class MockListsModule {}
+// --- Minimal valid Nest modules for scanner ---
+@Module({})
+class MockAuthModule {}
+
+@Module({})
+class MockUsersModule {}
+@Module({})
+class MockBoardsModule {}
+@Module({})
+class MockListsModule {}
 jest.mock('../src/app/modules/cards/cards.service', () => ({ CardService: class {} }));
 const { CardService } = require('../src/app/modules/cards/cards.service');
 
 @Module({
   providers: [CardService],
   exports: [CardService],
-}) class MockCardModule {}
-@Module({}) class MockWorkspacesModule {}
-@Module({}) class MockUsersWorkspacesModule {}
-@Module({}) class MockCalendarModule {} 
+})
+class MockCardModule {}
+@Module({})
+class MockWorkspacesModule {}
+@Module({})
+class MockUsersWorkspacesModule {}
+@Module({})
+class MockCalendarModule {}
 
 // --- Mock database entities ---
 jest.mock('../src/database/entities/user.entity', () => ({ UserEntity: class {} }));
-jest.mock('../src/database/entities/userworkspace.entity', () => ({ UserWorkspaceEntity: class {} }));
+jest.mock('../src/database/entities/userworkspace.entity', () => ({
+  UserWorkspaceEntity: class {},
+}));
 jest.mock('../src/database/entities/workspace.entity', () => ({ WorkspaceEntity: class {} }));
 jest.mock('../src/database/entities/board.entity', () => ({ BoardEntity: class {} }));
 jest.mock('../src/database/entities/list.entity', () => ({ ListEntity: class {} }));
 jest.mock('../src/database/entities/card.entity', () => ({ CardEntity: class {} }));
 
 // --- Mock TypeORM module ---
-@Module({}) class MockTypeOrmModule {}
+@Module({})
+class MockTypeOrmModule {}
 const forRootMock = jest.fn().mockReturnValue({ module: MockTypeOrmModule } as DynamicModule);
 const forRootAsyncMock = jest.fn().mockImplementation((options) => {
   if (options?.useFactory) {
     const fakeConfig = {
-      get: (key: string, def?: any) =>
-        process.env[key] !== undefined ? process.env[key] : def,
+      get: (key: string, def?: any) => (process.env[key] !== undefined ? process.env[key] : def),
     };
-    options.useFactory(fakeConfig); 
+    options.useFactory(fakeConfig);
   }
 
   return { module: MockTypeOrmModule } as DynamicModule;
 });
-
 
 jest.mock('@nestjs/typeorm', () => ({
   TypeOrmModule: {
@@ -89,16 +101,22 @@ jest.mock('node:fs', () => {
 jest.mock('../src/database/dbservices/agents.dbservice', () => ({ AgentsDBService: class {} }));
 jest.mock('../src/database/dbservices/boards.dbservice', () => ({ BoardsDBService: class {} }));
 jest.mock('../src/database/dbservices/lists.dbservice', () => ({ ListsDBService: class {} }));
-jest.mock('../src/database/dbservices/workspaces.dbservice', () => ({ WorkspacesDBService: class {} }));
+jest.mock('../src/database/dbservices/workspaces.dbservice', () => ({
+  WorkspacesDBService: class {},
+}));
 jest.mock('../src/database/dbservices/users.dbservice', () => ({ UsersDBService: class {} }));
-jest.mock('../src/database/dbservices/usersworkspaces.dbservice', () => ({ UsersWorkspacesDBService: class {} }));
+jest.mock('../src/database/dbservices/usersworkspaces.dbservice', () => ({
+  UsersWorkspacesDBService: class {},
+}));
 
 const { AgentsDBService } = require('../src/database/dbservices/agents.dbservice');
 const { BoardsDBService } = require('../src/database/dbservices/boards.dbservice');
 const { ListsDBService } = require('../src/database/dbservices/lists.dbservice');
 const { WorkspacesDBService } = require('../src/database/dbservices/workspaces.dbservice');
 const { UsersDBService } = require('../src/database/dbservices/users.dbservice');
-const { UsersWorkspacesDBService } = require('../src/database/dbservices/usersworkspaces.dbservice');
+const {
+  UsersWorkspacesDBService,
+} = require('../src/database/dbservices/usersworkspaces.dbservice');
 
 @Module({
   providers: [
@@ -126,9 +144,15 @@ jest.mock('../src/app/modules/users/users.module', () => ({ UsersModule: MockUse
 jest.mock('../src/app/modules/boards/boards.module', () => ({ BoardsModule: MockBoardsModule }));
 jest.mock('../src/app/modules/lists/lists.module', () => ({ ListsModule: MockListsModule }));
 jest.mock('../src/app/modules/cards/cards.module', () => ({ CardModule: MockCardModule }));
-jest.mock('../src/app/modules/workspaces/workspaces.module', () => ({ WorkspacesModule: MockWorkspacesModule }));
-jest.mock('../src/app/modules/users-workspaces/usersworkspaces.module', () => ({ UsersWorkspacesModule: MockUsersWorkspacesModule }));
-jest.mock('../src/app/modules/calendar/calendar.module', () => ({ CalendarModule: MockCalendarModule })); // ✅ IMPORTANTE: este mock arriba del require(AppModule)
+jest.mock('../src/app/modules/workspaces/workspaces.module', () => ({
+  WorkspacesModule: MockWorkspacesModule,
+}));
+jest.mock('../src/app/modules/users-workspaces/usersworkspaces.module', () => ({
+  UsersWorkspacesModule: MockUsersWorkspacesModule,
+}));
+jest.mock('../src/app/modules/calendar/calendar.module', () => ({
+  CalendarModule: MockCalendarModule,
+})); // ✅ IMPORTANTE: este mock arriba del require(AppModule)
 jest.mock('../src/livekit/livekit.module', () => ({ LivekitModule: class {} }));
 jest.mock('../src/gateways/realtime.gateway', () => ({ RealtimeGateway: class {} }));
 
@@ -140,6 +164,10 @@ jest.mock('googleapis', () => ({
     })),
   },
 }));
+
+const mockEmbeddingService = {
+  generate: jest.fn().mockResolvedValue([]),
+};
 
 // --- Require AppModule after mocks ---
 const { AppModule } = require('../src/app/app.module');
@@ -158,7 +186,10 @@ describe('AppModule (mocked)', () => {
   it('debería compilar AppModule correctamente', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(EmbeddingService)
+      .useValue(mockEmbeddingService)
+      .compile();
 
     expect(moduleRef.get(AppModule)).toBeInstanceOf(AppModule);
     expect(moduleRef).toBeDefined();
@@ -195,7 +226,11 @@ describe('AppModule (mocked)', () => {
 
     const module = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      // 🚀 Anulación del proveedor para evitar la inicialización de OpenAI
+      .overrideProvider(EmbeddingService)
+      .useValue(mockEmbeddingService)
+      .compile();
 
     expect(module).toBeDefined();
   });
@@ -206,7 +241,6 @@ describe('AppModule (mocked)', () => {
     jest.spyOn(fs, 'readFileSync').mockReturnValue('FAKE_CA_PEM');
 
     jest.isolateModules(() => {
-      const { AppModule } = require('../src/app/app.module');
       const config = {
         get: (key: string) => process.env[key],
       };
@@ -222,6 +256,4 @@ describe('AppModule (mocked)', () => {
       }
     });
   });
-
-
 });

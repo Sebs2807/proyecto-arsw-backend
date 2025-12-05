@@ -188,7 +188,7 @@ export class AuthService {
             process.env.GOOGLE_CLIENT_SECRET,
           );
           // revokeToken expects an access_token or refresh_token
-          await oAuth2Client.revokeToken(user.googleRefreshToken);
+          await oAuth2Client.revokeToken(user.googleRefreshToken as string);
         } catch (err) {
           this.logger.warn('Failed to revoke Google token during logout', err as Error);
         }
