@@ -81,7 +81,7 @@ jobs:
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.verbose=true
 
-    deploy_to_acr:
+  deploy_to_acr:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -109,4 +109,3 @@ jobs:
 
           docker tag $ACR/$IMAGE_NAME:$TAG $ACR/$IMAGE_NAME:latest
           docker push $ACR/$IMAGE_NAME:latest
-
