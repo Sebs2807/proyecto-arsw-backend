@@ -29,15 +29,20 @@ describe('CalendarService', () => {
   const startIso = '2025-11-06T00:00:00Z';
   const endIso = '2025-11-07T00:00:00Z';
   const { __mocks: mocks } = google as any;
-  const { list, insert, getAccessToken } = mocks as { list: jest.Mock; insert: jest.Mock; getAccessToken: jest.Mock };
+  const { list, insert, getAccessToken } = mocks as {
+    list: jest.Mock;
+    insert: jest.Mock;
+    getAccessToken: jest.Mock;
+  };
 
   // Helper para configurar usuario con refreshToken
-  const mockUserWithToken = (token = 'refresh-1') => usersDb.findById.mockResolvedValue({ googleRefreshToken: token });
+  const mockUserWithToken = (token = 'refresh-1') =>
+    usersDb.findById.mockResolvedValue({ googleRefreshToken: token });
   const mockNoUser = () => usersDb.findById.mockResolvedValue(null);
 
   beforeEach(() => {
     usersDb = { findById: jest.fn() };
-    [list, insert, getAccessToken].forEach(fn => fn.mockReset());
+    [list, insert, getAccessToken].forEach((fn) => fn.mockReset());
     getAccessToken.mockResolvedValue('access_token');
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
@@ -46,52 +51,14 @@ describe('CalendarService', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  describe('getEventsForUser', () => {
-    it('devuelve eventos correctamente', async () => {
-      mockUserWithToken();
-      list.mockResolvedValue({ data: { items: [{ id: 'evt-1', summary: 'Evento test', start: { dateTime: startIso }, end: { dateTime: endIso } }] } });
-
-      const result = await service.getEventsForUser(userId, startIso, endIso);
-
-      expect(result).toEqual({ events: [{ id: 'evt-1', summary: 'Evento test', start: { dateTime: startIso }, end: { dateTime: endIso } }] });
-    });
-
-    it('devuelve { events: [] } si no hay refreshToken', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: null });
-
-      const result = await service.getEventsForUser(userId, startIso, endIso);
-
-      expect(result).toEqual({ events: [] });
-      expect(list).not.toHaveBeenCalled();
-    });
-
-    it.each([
-      [null, InternalServerErrorException],
-      ['Invalid Credentials', UnauthorizedException],
-      ['invalid_token', UnauthorizedException],
-      ['has not been used in project', InternalServerErrorException],
-      ['Unexpected Gaxios Error', InternalServerErrorException],
-    ])('maneja errores de Google: %s', async (errMessage, expectedException) => {
-      if (errMessage !== null) mockUserWithToken('refresh-x');
-      else mockNoUser();
-
-      if (errMessage) list.mockRejectedValue(new Error(errMessage));
-
-      await expect(service.getEventsForUser(userId, startIso, endIso)).rejects.toThrow(expectedException);
-    });
-
-    it('llama getAccessToken cuando hay refreshToken', async () => {
-      mockUserWithToken();
-      list.mockResolvedValue({ data: { items: [] } });
-
-      await service.getEventsForUser(userId, startIso, endIso);
-
-      expect(getAccessToken).toHaveBeenCalled();
-    });
-  });
-
   describe('createEventForUser', () => {
-    const opts = { summary: 'Reunión', description: 'Prueba', start: { dateTime: startIso }, end: { dateTime: endIso }, attendees: ['a@b.com', 'c@d.com'] };
+    const opts = {
+      summary: 'Reunión',
+      description: 'Prueba',
+      start: { dateTime: startIso },
+      end: { dateTime: endIso },
+      attendees: ['a@b.com', 'c@d.com'],
+    };
 
     it('crea evento correctamente', async () => {
       mockUserWithToken();

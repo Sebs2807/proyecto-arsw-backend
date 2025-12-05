@@ -3,10 +3,10 @@ import { AppModule } from './app/app.module';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import * as fs from 'node:fs';
-import 'reflect-metadata';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-interceptor.filter';
+import { RealtimeGateway } from './gateways/realtime.gateway';
 
 export async function bootstrap() {
   const httpsOptions = {
@@ -17,6 +17,7 @@ export async function bootstrap() {
   const app = await NestFactory.create(AppModule, { httpsOptions });
   app.use(cookieParser());
 
+  // Swagger
   const config = new DocumentBuilder()
     .setTitle('Synapse API')
     .setDescription('API documentation')
@@ -26,15 +27,23 @@ export async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
+  // Versioning
   app.enableVersioning({
     type: VersioningType.URI,
   });
 
+  // CORS
   app.enableCors({
     origin: process.env.FRONTEND_URL,
     credentials: true,
   });
 
+  const server = app.getHttpServer();
+  const realtime = app.get(RealtimeGateway);
+
+  realtime.registerTwilioWS(server);
+
+  // Global Pipes & Filters
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -43,9 +52,9 @@ export async function bootstrap() {
   );
 
   app.useGlobalInterceptors(new ResponseInterceptor());
-
   app.useGlobalFilters(new AllExceptionsFilter());
 
   await app.listen(3000);
 }
+
 void bootstrap();
