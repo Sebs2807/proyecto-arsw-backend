@@ -5,8 +5,9 @@ import { Module } from '@nestjs/common';
 
 // Mock Services first
 jest.mock('../../src/app/modules/cards/cards.service', () => ({ CardService: class {} }));
-jest.mock('../../src/app/modules/ai/services/openAi-live.service', () => ({ OpenAILiveService: class {} }));
-jest.mock('../../src/app/modules/eleven-labs/eleven-labs.service', () => ({ ElevenLabsService: class {} }));
+jest.mock('../../src/app/modules/ai/services/openAi-live.service', () => ({
+  OpenAILiveService: class {},
+}));
 
 // Mock Modules with metadata
 jest.mock('../../src/app/modules/cards/cards.module', () => {
@@ -29,17 +30,6 @@ jest.mock('../../src/app/modules/ai/ai.module', () => {
   })
   class MockAiModule {}
   return { AiModule: MockAiModule };
-});
-
-jest.mock('../../src/app/modules/eleven-labs/eleven-labs.module', () => {
-  const { Module } = jest.requireActual('@nestjs/common');
-  const { ElevenLabsService } = require('../../src/app/modules/eleven-labs/eleven-labs.service');
-  @Module({
-    providers: [ElevenLabsService],
-    exports: [ElevenLabsService],
-  })
-  class MockElevenLabsModule {}
-  return { ElevenLabsModule: MockElevenLabsModule };
 });
 
 describe('RealtimeModule', () => {

@@ -18,7 +18,6 @@ import { UserWorkspaceEntity } from 'src/database/entities/userworkspace.entity'
 import { WorkspaceEntity } from 'src/database/entities/workspace.entity';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspaces.module';
-import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 import { LivekitModule } from 'src/livekit/livekit.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { AgentEntity } from 'src/database/entities/agent.entity';

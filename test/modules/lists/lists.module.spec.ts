@@ -9,7 +9,6 @@ import { ListController } from '../../../src/app/modules/lists/lists.controller'
 import { RealtimeGateway } from '../../../src/gateways/realtime.gateway';
 import { RealtimeModule } from '../../../src/gateways/realtime.module';
 import { AiModule } from '../../../src/app/modules/ai/ai.module'; // Import to override
-import { ElevenLabsModule } from '../../../src/app/modules/eleven-labs/eleven-labs.module'; // Import to override
 
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../../src/database/database.module';
@@ -57,10 +56,6 @@ describe('ListsModule', () => {
       // **NEW FIX**: Override AiModule to prevent deep dependency resolution
       .overrideModule(AiModule)
       .useModule(FakeAiModule)
-
-      // **NEW FIX**: Override ElevenLabsModule to prevent deep dependency resolution
-      .overrideModule(ElevenLabsModule)
-      .useModule(FakeElevenLabsModule)
 
       // Override the TypeORM repository for ListEntity
       .overrideProvider(getRepositoryToken(ListEntity))
