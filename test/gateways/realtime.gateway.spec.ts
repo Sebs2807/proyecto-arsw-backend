@@ -1,13 +1,26 @@
-// test/gateways/realtime.gateway.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { RealtimeGateway } from '../../src/gateways/realtime.gateway';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
+import { OpenAILiveService } from 'src/app/modules/ai/services/openAi-live.service';
+import { CardService } from 'src/app/modules/cards/cards.service';
+
+const mockOpenAILiveService = {
+  // Add necessary mocked methods here if they are used in the Gateway methods being tested
+};
+
+const mockCardService = {
+  // Add necessary mocked methods here if they are used in the Gateway methods being tested
+};
 
 describe('RealtimeGateway', () => {
   let gateway: RealtimeGateway;
   let mockServer: any;
   let mockClient: any;
   let mockRoomEmitter: any;
+
+  // Creamos un mock del Logger para inyectarlo, aunque el gateway lo crea internamente,
+  // el espía directo al gateway.logger suele ser más robusto si el logger es privado.
+  // Sin embargo, para `handleDragStart` que usa `console.log`, necesitamos el espía global.
 
   beforeEach(async () => {
     mockRoomEmitter = {
@@ -26,8 +39,25 @@ describe('RealtimeGateway', () => {
       emit: jest.fn(),
     };
 
+    // 2. Provide the RealtimeGateway and its dependencies (mocks)
     const module: TestingModule = await Test.createTestingModule({
-      providers: [RealtimeGateway],
+      providers: [
+        RealtimeGateway,
+        // Mock providers to satisfy the Gateway's constructor dependencies
+        {
+          provide: OpenAILiveService,
+          useValue: mockOpenAILiveService,
+        },
+        {
+          provide: CardService,
+          useValue: mockCardService,
+        },
+        // Opcional: Proporcionar un mock de Logger si fuera inyectado en el constructor
+        // {
+        //   provide: Logger,
+        //   useValue: { log: jest.fn(), warn: jest.fn(), error: jest.fn() },
+        // },
+      ],
     }).compile();
 
     gateway = module.get<RealtimeGateway>(RealtimeGateway);
@@ -86,7 +116,7 @@ describe('RealtimeGateway', () => {
     gateway.handleCallEnded({ boardId: 'b1', cardId: 'c1', user: 'Pedro' });
 
     const map = (gateway as any).activeCallsPerBoard.get('b1');
-    expect(map).toBeUndefined(); 
+    expect(map).toBeUndefined();
 
     expect(mockServer.to).toHaveBeenCalledWith('b1');
     expect(mockRoomEmitter.emit).toHaveBeenCalledWith('call:ended', {
@@ -97,6 +127,7 @@ describe('RealtimeGateway', () => {
   });
 
   it('call:requestState debería enviar snapshot al cliente', () => {
+    // Usamos 'any' para acceder a métodos privados
     const spySnapshot = jest.spyOn<any, any>(gateway as any, 'emitCallSnapshot');
 
     gateway.handleCallRequestState({ boardId: 'b99' }, mockClient as Socket);
@@ -106,6 +137,8 @@ describe('RealtimeGateway', () => {
 
   it('should handle card:dragStart', () => {
     const data = { boardId: 'b1', cardId: 'c1', user: 'Camilo' };
+
+    // Este espía funciona porque handleDragStart usa console.log directamente
     const spy = jest.spyOn(console, 'log').mockImplementation();
 
     gateway.handleDragStart(data, mockClient as Socket);
@@ -139,14 +172,17 @@ describe('RealtimeGateway', () => {
 
   it('should handle card:dragEnd', () => {
     const data = { boardId: 'b1', cardId: 'c3', user: 'Ana' };
-    const spy = jest.spyOn(console, 'log').mockImplementation();
+
+    // 💡 CAMBIO CRÍTICO: Espiamos el logger de NestJS (this.logger.log), no el global (console.log).
+    // Accedemos a la propiedad privada 'logger' usando 'as any'.
+    const loggerSpy = jest.spyOn((gateway as any).logger, 'log').mockImplementation();
 
     gateway.handleDragEnd(data, mockClient as Socket);
 
     expect(mockClient.to).toHaveBeenCalledWith('b1');
     expect(mockRoomEmitter.emit).toHaveBeenCalledWith('card:dragEnd', data);
-    expect(spy).toHaveBeenCalledWith('Ana soltó c3');
+    expect(loggerSpy).toHaveBeenCalledWith('Ana soltó c3');
 
-    spy.mockRestore();
+    loggerSpy.mockRestore();
   });
 });

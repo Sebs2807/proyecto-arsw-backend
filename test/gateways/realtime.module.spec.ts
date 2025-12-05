@@ -1,6 +1,36 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RealtimeModule } from '../../src/gateways/realtime.module';
 import { RealtimeGateway } from '../../src/gateways/realtime.gateway';
+import { Module } from '@nestjs/common';
+
+// Mock Services first
+jest.mock('../../src/app/modules/cards/cards.service', () => ({ CardService: class {} }));
+jest.mock('../../src/app/modules/ai/services/openAi-live.service', () => ({
+  OpenAILiveService: class {},
+}));
+
+// Mock Modules with metadata
+jest.mock('../../src/app/modules/cards/cards.module', () => {
+  const { Module } = jest.requireActual('@nestjs/common');
+  const { CardService } = require('../../src/app/modules/cards/cards.service');
+  @Module({
+    providers: [CardService],
+    exports: [CardService],
+  })
+  class MockCardModule {}
+  return { CardModule: MockCardModule };
+});
+
+jest.mock('../../src/app/modules/ai/ai.module', () => {
+  const { Module } = jest.requireActual('@nestjs/common');
+  const { OpenAILiveService } = require('../../src/app/modules/ai/services/openAi-live.service');
+  @Module({
+    providers: [OpenAILiveService],
+    exports: [OpenAILiveService],
+  })
+  class MockAiModule {}
+  return { AiModule: MockAiModule };
+});
 
 describe('RealtimeModule', () => {
   let moduleRef: TestingModule;

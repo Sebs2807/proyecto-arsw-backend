@@ -41,11 +41,7 @@ describe('CalendarController', () => {
       const events = [{ id: '1', summary: 'Evento de prueba' }];
       mockCalendarService.getEventsForUser.mockResolvedValueOnce({ events });
 
-      const result = await controller.getGoogleEvents(
-        mockRequest,
-        '2025-11-01',
-        '2025-11-02',
-      );
+      const result = await controller.getGoogleEvents(mockRequest, '2025-11-01', '2025-11-02');
 
       expect(service.getEventsForUser).toHaveBeenCalledWith('123', '2025-11-01', '2025-11-02');
       expect(result).toEqual({ events });

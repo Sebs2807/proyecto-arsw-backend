@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
-import { IsOptional, IsString, IsIn, IsUUID, IsDateString, Length } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsUUID, IsDateString, Length, IsEmail } from 'class-validator';
 
 export class UpdateCardDto {
   @ApiPropertyOptional({
@@ -24,17 +24,7 @@ export class UpdateCardDto {
   description?: string;
 
   @ApiPropertyOptional({
-    description: 'Estado actualizado de la tarjeta',
-    example: 'in_progress',
-    enum: ['new', 'in_progress', 'completed'],
-  })
-  @IsOptional()
-  @IsIn(['new', 'in_progress', 'completed'])
-  @Expose()
-  status?: 'new' | 'in_progress' | 'completed';
-
-  @ApiPropertyOptional({
-    description: 'Prioridad actualizada de la tarjeta',
+    description: 'Prioridad de la tarjeta',
     example: 'high',
     enum: ['low', 'medium', 'high'],
   })
@@ -60,4 +50,54 @@ export class UpdateCardDto {
   @IsDateString()
   @Expose()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre del contacto o lead asociado al card',
+    example: 'Carlos Rodríguez',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(0, 100)
+  @Expose()
+  contactName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Correo del contacto',
+    example: 'carlos@empresa.com',
+  })
+  @IsOptional()
+  @IsEmail()
+  @Length(0, 150)
+  @Expose()
+  contactEmail?: string;
+
+  @ApiPropertyOptional({
+    description: 'Número telefónico del contacto',
+    example: '+573001112233',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(0, 20)
+  @Expose()
+  contactPhone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Industria o sector del cliente',
+    example: 'Tecnología',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(0, 100)
+  @Expose()
+  industry?: string;
+
+  @ApiPropertyOptional({
+    description: 'Estado actualizado de la tarjeta',
+    example: 'in_progress',
+    enum: ['new', 'in_progress', 'completed', 'archived'],
+  })
+  @IsOptional()
+  @IsIn(['new', 'in_progress', 'completed', 'archived'])
+  @Expose()
+  status?: 'new' | 'in_progress' | 'completed' | 'archived';
 }

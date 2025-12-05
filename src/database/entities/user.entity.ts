@@ -25,11 +25,11 @@ export class UserEntity {
   @Column({ nullable: true })
   picture: string;
 
-  @Column({ nullable: true })
-  googleRefreshToken?: string;
+  @Column({ type: 'text', nullable: true })
+  googleRefreshToken: string | null;
 
-  @Column({ nullable: true })
-  JWTRefreshToken?: string;
+  @Column({ type: 'text', nullable: true })
+  JWTRefreshToken: string | null;
 
   @OneToMany(() => UserWorkspaceEntity, (userWorkspace) => userWorkspace.user)
   workspaces: UserWorkspaceEntity[];

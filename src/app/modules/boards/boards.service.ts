@@ -23,6 +23,52 @@ export class BoardsService {
     private readonly usersDbService: UsersDBService,
   ) {}
 
+  async findManyAutocomplete(query: QueryBoardDto & { excludeIds?: string[] }) {
+    try {
+      const page = Number(query.page) || 1;
+      const limit = Number(query.limit) || 10;
+      const search = query.search || '';
+      const workspaceId = query.workspaceId;
+      const excludeIds = query.excludeIds || [];
+
+      const skip = (page - 1) * limit;
+
+      const queryBuilder = this.boardsDbService.repository
+        .createQueryBuilder('board')
+        .leftJoin('board.workspace', 'workspace')
+        .leftJoin('board.createdBy', 'createdBy')
+        .leftJoin('board.members', 'members')
+        .where('workspace.id = :workspaceId', { workspaceId });
+
+      if (search) {
+        queryBuilder.andWhere('LOWER(board.title) LIKE LOWER(:search)', { search: `%${search}%` });
+      }
+
+      if (excludeIds.length > 0) {
+        queryBuilder.andWhere('board.id NOT IN (:...excludeIds)', { excludeIds });
+      }
+
+      const total = await queryBuilder.getCount();
+
+      queryBuilder.orderBy('board.createdAt', 'DESC').skip(skip).take(limit);
+
+      const boards = await queryBuilder.getMany();
+
+      const boardsDTO = plainToInstance(BoardDto, boards, { excludeExtraneousValues: true });
+
+      return {
+        items: boardsDTO,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      this.logger.error(`Error fetching boards: ${error.message}`, error.stack);
+      throw new Error('Failed to fetch boards');
+    }
+  }
+
   async createBoard(
     title: string,
     description: string | undefined,

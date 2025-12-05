@@ -4,11 +4,11 @@ import { BoardsDBService } from 'src/database/dbservices/boards.dbservice';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { BoardEntity } from 'src/database/entities/board.entity';
 import { UserEntity } from 'src/database/entities/user.entity';
-import {
-  ForbiddenException,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+
+beforeAll(() => {
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+});
 
 describe('BoardsService', () => {
   let service: BoardsService;
@@ -16,16 +16,28 @@ describe('BoardsService', () => {
   let usersDbService: UsersDBService;
 
   const mockUser: UserEntity = { id: '1', email: 'test@example.com' } as UserEntity;
+  const mockWorkspace = {
+    id: 'ws1',
+    name: 'Mock Workspace',
+    users: [],
+    boards: [],
+    agent: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
   const mockBoard: BoardEntity = {
     id: '1',
     title: 'Test Board',
-    description: 'Test Description',
+    description: 'Descripcion del board',
     createdBy: mockUser,
     members: [mockUser],
-    workspace: { id: 'ws1' } as any,
-    color: '#2E2E5C',
+    workspace: mockWorkspace,
+    color: '#FFFFFF',
     createdAt: new Date(),
     updatedAt: new Date(),
+    lists: [],
+    agents: [],
   };
 
   const mockRepository = {
@@ -86,9 +98,7 @@ describe('BoardsService', () => {
     });
 
     it('debe ignorar miembros nulos', async () => {
-      mockUsersDbService.findById
-        .mockResolvedValueOnce(mockUser)
-        .mockResolvedValueOnce(null);
+      mockUsersDbService.findById.mockResolvedValueOnce(mockUser).mockResolvedValueOnce(null);
 
       await service.createBoard('Board', '', '1', ['1', '2'], 'ws1');
       expect(usersDbService.findById).toHaveBeenCalledTimes(2);
@@ -161,25 +171,25 @@ describe('BoardsService', () => {
         throw new Error('unexpected fail');
       });
 
-      await expect(
-        service.updateBoard('1', { title: 'Crash test' }),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(service.updateBoard('1', { title: 'Crash test' })).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('debe lanzar InternalServerErrorException si no se encuentra el board al actualizar con memberIds', async () => {
       mockRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(
-        service.updateBoard('1', { memberIds: ['1'] }),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(service.updateBoard('1', { memberIds: ['1'] })).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('debe lanzar InternalServerErrorException si el update del repositorio falla', async () => {
       mockRepository.update.mockRejectedValueOnce(new Error('DB fail'));
 
-      await expect(
-        service.updateBoard('1', { title: 'fallo de base de datos' }),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(service.updateBoard('1', { title: 'fallo de base de datos' })).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('debe manejar correctamente el caso de memberIds vacíos sin lanzar error', async () => {

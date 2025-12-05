@@ -121,9 +121,7 @@ export class UsersService {
       }
 
       if (workspaceId) {
-        console.log('holaaaa');
         if (excludeWorkspaceMembers) {
-          console.log('holaaaaaa');
           queryBuilder.andWhere(
             `user.id NOT IN (
             SELECT uw.userId

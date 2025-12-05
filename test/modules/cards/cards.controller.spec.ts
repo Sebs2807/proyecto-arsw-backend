@@ -15,6 +15,8 @@ describe('CardController', () => {
     cards: [],
     createdAt: new Date(),
     updatedAt: new Date(),
+    board: null as any,
+    agent: null as any,
   } as ListEntity;
 
   const mockCard: CardEntity = {
@@ -25,6 +27,13 @@ describe('CardController', () => {
     list: mockList,
     createdAt: new Date(),
     updatedAt: new Date(),
+    contactName: 'Mock Contact',
+    contactPhone: '555-1234',
+    contactEmail: 'mock@example.com',
+    industry: 'Tech',
+    priority: 'medium',
+    conversationState: undefined,
+    dueDate: undefined,
   } as CardEntity;
 
   beforeEach(async () => {
@@ -59,9 +68,14 @@ describe('CardController', () => {
   });
 
   it('should create a card', async () => {
+    const createDto = { title: 'Card 1', listId: '1' }; // Correct DTO structure, including listId
     jest.spyOn(service, 'create').mockResolvedValue(mockCard);
-    expect(await controller.create({ title: 'Card 1' }, '1')).toEqual(mockCard);
-    expect(service.create).toHaveBeenCalledWith({ title: 'Card 1' }, '1');
+
+    // Call the controller with the single DTO argument (no listId in path/query)
+    expect(await controller.create(createDto as any)).toEqual(mockCard);
+
+    // Assert the service was called with the complete DTO as a single argument
+    expect(service.create).toHaveBeenCalledWith(createDto);
   });
 
   it('should update a card', async () => {

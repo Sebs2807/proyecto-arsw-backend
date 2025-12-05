@@ -1,16 +1,26 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersWorkspacesModule } from 'src/app/modules/users-workspaces/usersworkspaces.module';
 import { UsersWorkspacesService } from 'src/app/modules/users-workspaces/usersworkspaces.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
 
-jest.mock('@nestjs/typeorm', () => ({
-  InjectRepository: jest.fn(() => () => {}),
-  TypeOrmModule: {
-    forFeature: jest.fn().mockReturnValue({
-      module: class MockTypeOrmModule {},
-    }),
-  },
-}));
+jest.mock('@qdrant/js-client-rest', () => {
+  return {
+    QdrantClient: jest.fn().mockImplementation(() => ({
+      getCollections: jest.fn(),
+      upsert: jest.fn(),
+      search: jest.fn(),
+    })),
+  };
+});
+
+jest.mock('@nestjs/typeorm', () => {
+  class MockTypeOrmModuleForFeature {}
+  return {
+    InjectRepository: jest.fn(() => () => {}),
+    TypeOrmModule: {
+      forFeature: jest.fn().mockReturnValue(MockTypeOrmModuleForFeature),
+    },
+  };
+});
 
 describe('UsersWorkspacesModule', () => {
   let moduleRef: TestingModule;

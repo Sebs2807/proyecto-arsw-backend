@@ -1,12 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspacesService } from '../../../src/app/modules/workspaces/workspaces.service';
-import { WorkspaceDBService } from '../../../src/database/dbservices/workspace.dbservice';
+import { WorkspacesDBService } from '../../../src/database/dbservices/workspaces.dbservice';
 import { WorkspaceEntity } from '../../../src/database/entities/workspace.entity';
-import { Logger } from '@nestjs/common';
 
 describe('WorkspacesService', () => {
   let service: WorkspacesService;
-  let dbService: WorkspaceDBService;
+  let dbService: WorkspacesDBService;
 
   const mockWorkspaceRepo = {
     create: jest.fn(),
@@ -23,14 +22,13 @@ describe('WorkspacesService', () => {
       providers: [
         WorkspacesService,
         {
-          provide: WorkspaceDBService,
+          provide: WorkspacesDBService,
           useValue: mockWorkspaceDBService,
         },
       ],
     }).compile();
 
     service = module.get<WorkspacesService>(WorkspacesService);
-    dbService = module.get<WorkspaceDBService>(WorkspaceDBService);
   });
 
   afterEach(() => {
