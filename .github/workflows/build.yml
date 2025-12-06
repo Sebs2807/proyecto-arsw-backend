@@ -112,7 +112,7 @@ jobs:
             SUBNET_NAME="subnet-migration" 
 
             echo "Starting ACI job $MIG_JOB_NAME in VNet to run migrations..."
-            
+
             # Crear el contenedor de ACI con recursos definidos
             az container create \
               --resource-group $RG_NAME \
@@ -157,15 +157,12 @@ jobs:
               --query "containers[0].instanceView.currentState.exitCode" \
               --output tsv)
             
-            # Limpiar el contenedor inmediatamente
             az container delete --name $MIG_JOB_NAME --resource-group $RG_NAME --yes
-
             if [ "$EXIT_CODE" -ne 0 ]; then
-              echo "Migration FAILED with exit code $EXIT_CODE. Review logs above for TypeORM error (e.g., connection issue, credentials, or missing entrypoint)."
+              echo "Migration FAILED with exit code $EXIT_CODE."
               exit 1
             fi
             echo "Migrations completed successfully inside Azure VNet."
-
       - name: Deploy to Azure Container App
         uses: azure/CLI@v1
         with:
