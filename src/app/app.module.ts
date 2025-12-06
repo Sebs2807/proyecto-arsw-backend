@@ -52,7 +52,7 @@ import { RealtimeModule } from 'src/gateways/realtime.module';
           CardEntity,
           AgentEntity,
         ],
-        synchronize: true,
+        synchronize: config.get('NODE_ENV') === 'local',
         logging: false,
         ssl:
           config.get('DB_SSL') === 'true'
