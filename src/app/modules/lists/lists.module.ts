@@ -5,12 +5,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ListEntity } from '../../../database/entities/list.entity';
 import { ListService } from './lists.service';
 import { ListController } from './lists.controller';
-import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 import { DatabaseModule } from 'src/database/database.module';
+import { AiModule } from '../ai/ai.module';
+import { RealtimeModule } from 'src/gateways/realtime.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ListEntity]), DatabaseModule],
-  providers: [ListService, RealtimeGateway],
+  imports: [TypeOrmModule.forFeature([ListEntity]), DatabaseModule, AiModule, RealtimeModule],
+  providers: [ListService],
   controllers: [ListController],
   exports: [ListService],
 })

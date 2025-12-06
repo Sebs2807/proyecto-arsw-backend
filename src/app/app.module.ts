@@ -18,9 +18,13 @@ import { UserWorkspaceEntity } from 'src/database/entities/userworkspace.entity'
 import { WorkspaceEntity } from 'src/database/entities/workspace.entity';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { UsersWorkspacesModule } from './modules/users-workspaces/usersworkspaces.module';
-import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 import { LivekitModule } from 'src/livekit/livekit.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { AgentEntity } from 'src/database/entities/agent.entity';
+import { AgentsModule } from './modules/agents/agents.module';
+import { KnowledgeModule } from './modules/knowledges/knowledges.modules';
+import { TwilioModule } from './modules/twilio/twilio.module';
+import { RealtimeModule } from 'src/gateways/realtime.module';
 
 @Module({
   imports: [
@@ -46,6 +50,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
           BoardEntity,
           ListEntity,
           CardEntity,
+          AgentEntity,
         ],
         synchronize: true,
         logging: false,
@@ -67,7 +72,10 @@ import { CalendarModule } from './modules/calendar/calendar.module';
     WorkspacesModule,
     UsersWorkspacesModule,
     CalendarModule,
+    AgentsModule,
+    KnowledgeModule,
+    TwilioModule,
+    RealtimeModule,
   ],
-  providers: [RealtimeGateway],
 })
 export class AppModule {}

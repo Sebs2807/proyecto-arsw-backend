@@ -30,6 +30,10 @@ describe('WorkspacesController', () => {
     service = module.get<WorkspacesService>(WorkspacesService);
   });
 
+  beforeAll(() => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });

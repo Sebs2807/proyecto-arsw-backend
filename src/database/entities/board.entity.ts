@@ -5,13 +5,14 @@ import {
   ManyToOne,
   ManyToMany,
   JoinTable,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
 import { WorkspaceEntity } from './workspace.entity';
 import { ListEntity } from './list.entity';
+import { AgentEntity } from './agent.entity';
 
 @Entity('boards')
 export class BoardEntity {
@@ -41,6 +42,11 @@ export class BoardEntity {
   @OneToMany(() => ListEntity, (list) => list.board, { cascade: true })
   lists: ListEntity[];
 
+  @ManyToMany(() => AgentEntity, (agent) => agent.boards)
+  @JoinTable({
+    name: 'boards_agents',
+  })
+  agents: AgentEntity[];
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

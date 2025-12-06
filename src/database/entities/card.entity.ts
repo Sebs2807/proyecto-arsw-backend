@@ -18,14 +18,33 @@ export class CardEntity {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ default: 'new' })
-  status: string;
+  @Column({ length: 100, nullable: true })
+  contactName: string;
+
+  @Column({ length: 150, nullable: true })
+  contactEmail?: string;
+
+  @Column({ length: 20, nullable: true })
+  contactPhone: string;
+
+  @Column({ length: 100, nullable: true })
+  industry?: string;
 
   @Column({ nullable: true })
   priority?: 'low' | 'medium' | 'high';
 
   @ManyToOne(() => ListEntity, (list) => list.cards, { onDelete: 'CASCADE' })
   list: ListEntity;
+
+  @Column({ type: 'json', nullable: true })
+  conversationState?: {
+    currentNode: string;
+    history: Array<{
+      node: string;
+      text: string;
+      timestamp: string;
+    }>;
+  };
 
   @Column({ type: 'timestamp', nullable: true })
   dueDate?: Date;

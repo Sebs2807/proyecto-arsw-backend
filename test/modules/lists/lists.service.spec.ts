@@ -1,6 +1,7 @@
+jest.mock('openai');
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ListService } from '../../../src/app/modules/lists/lists.service';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { ListEntity } from '../../../src/database/entities/list.entity';
 import { RealtimeGateway } from 'src/gateways/realtime.gateway';
 import { ListsDBService } from '../../../src/database/dbservices/lists.dbservice';
@@ -171,29 +172,28 @@ describe('ListService', () => {
     });
   });
 
-describe('casos opcionales sin gateway ni repositorios', () => {
-  it('debería funcionar cuando no hay realtimeGateway (opcional)', async () => {
-    const module2 = await Test.createTestingModule({
-      providers: [
-        ListService,
-        { provide: ListsDBService, useValue: mockListsDbService },
-        { provide: BoardsDBService, useValue: mockBoardsDbService },
-        RealtimeGateway,
-      ],
-    })
-      .overrideProvider(RealtimeGateway)
-      .useValue({
-        emitGlobalUpdate: jest.fn(), 
+  describe('casos opcionales sin gateway ni repositorios', () => {
+    it('debería funcionar cuando no hay realtimeGateway (opcional)', async () => {
+      const module2 = await Test.createTestingModule({
+        providers: [
+          ListService,
+          { provide: ListsDBService, useValue: mockListsDbService },
+          { provide: BoardsDBService, useValue: mockBoardsDbService },
+          RealtimeGateway,
+        ],
       })
-      .compile();
+        .overrideProvider(RealtimeGateway)
+        .useValue({
+          emitGlobalUpdate: jest.fn(),
+        })
+        .compile();
 
-    const service2 = module2.get<ListService>(ListService);
-    mockListsDbService.repository.create.mockReturnValue(mockList);
-    mockListsDbService.repository.save.mockResolvedValue(mockList);
+      const service2 = module2.get<ListService>(ListService);
+      mockListsDbService.repository.create.mockReturnValue(mockList);
+      mockListsDbService.repository.save.mockResolvedValue(mockList);
 
-    const result = await service2.create({ title: 'Sin gateway', boardId: '1' } as any);
-    expect(result).toEqual(mockList);
+      const result = await service2.create({ title: 'Sin gateway', boardId: '1' } as any);
+      expect(result).toEqual(mockList);
+    });
   });
-});
-
 });

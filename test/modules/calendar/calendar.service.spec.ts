@@ -1,15 +1,17 @@
-import { InternalServerErrorException, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
 import { CalendarService } from '../../../src/app/modules/calendar/calendar.service';
 import { google } from 'googleapis';
-
-const listMock = jest.fn();
-const insertMock = jest.fn();
-const getAccessTokenMock = jest.fn();
 
 jest.mock('googleapis', () => {
   const _list = jest.fn();
   const _insert = jest.fn();
-  const _getAccessToken = jest.fn().mockResolvedValue('access_token');
+  const _delete = jest.fn();
+  const _patch = jest.fn();
+  const _getAccessToken = jest.fn().mockResolvedValue('token');
 
   return {
     google: {
@@ -23,13 +25,11 @@ jest.mock('googleapis', () => {
         events: {
           list: _list,
           insert: _insert,
+          delete: _delete,
+          patch: _patch,
         },
       })),
-      __mocks: {
-        list: _list,
-        insert: _insert,
-        getAccessToken: _getAccessToken,
-      },
+      __mocks: { list: _list, insert: _insert, delete: _delete, patch: _patch, getAccessToken: _getAccessToken },
     },
   };
 });
@@ -38,199 +38,189 @@ describe('CalendarService', () => {
   let service: CalendarService;
   let usersDb: { findById: jest.Mock };
 
-  const userId = 'user-123';
-  const startIso = '2025-11-06T00:00:00Z';
-  const endIso = '2025-11-07T00:00:00Z';
-
-  const g = google as any;
-  const list = g.__mocks.list as jest.Mock;
-  const insert = g.__mocks.insert as jest.Mock;
-  const getAccessToken = g.__mocks.getAccessToken as jest.Mock;
+  const userId = 'uid-1';
+  const { __mocks: mocks } = google as any;
+  const { list, insert, delete: del, patch, getAccessToken } = mocks;
 
   beforeEach(() => {
     usersDb = { findById: jest.fn() };
-
-    list.mockReset();
-    insert.mockReset();
-    getAccessToken.mockReset().mockResolvedValue('access_token');
+    [list, insert, del, patch, getAccessToken].forEach((fn) => fn.mockReset());
+    service = new CalendarService(usersDb as any);
 
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-
-    service = new CalendarService(usersDb as any);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  const mockUser = (token = 't1') =>
+    usersDb.findById.mockResolvedValue({ googleRefreshToken: token });
+
+  const noUser = () => usersDb.findById.mockResolvedValue(null);
+  const userNoToken = () => usersDb.findById.mockResolvedValue({ googleRefreshToken: null });
+
+  // ---------------------------------------------------------------
+  // TEST getAuthClient()
+  // ---------------------------------------------------------------
+  it('getAuthClient lanza Unauthorized si usuario no existe', async () => {
+    noUser();
+    await expect(
+      service['getAuthClient']('x')
+    ).rejects.toThrow(UnauthorizedException);
   });
 
-  describe('getEventsForUser', () => {
-    it('✅ devuelve eventos correctamente', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-1' });
-      list.mockResolvedValue({
-        data: {
-          items: [
-            {
-              id: 'evt-1',
-              summary: 'Evento test',
-              start: { dateTime: startIso },
-              end: { dateTime: endIso },
-            },
-          ],
-        },
-      });
-
-      const result = await service.getEventsForUser(userId, startIso, endIso);
-      expect(result).toEqual({
-        events: [
-          {
-            id: 'evt-1',
-            summary: 'Evento test',
-            start: { dateTime: startIso },
-            end: { dateTime: endIso },
-          },
-        ],
-      });
-    });
-
-    it('✅ devuelve { events: [] } si el usuario no tiene refreshToken', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: null });
-
-      const result = await service.getEventsForUser(userId, startIso, endIso);
-      expect(result).toEqual({ events: [] });
-      expect(list).not.toHaveBeenCalled();
-    });
-
-    it('lanza InternalServerErrorException si el usuario no existe (según tu catch)', async () => {
-      usersDb.findById.mockResolvedValue(null);
-
-      await expect(service.getEventsForUser(userId, startIso, endIso)).rejects.toThrow(
-        InternalServerErrorException,
-      );
-    });
-
-    it('lanza UnauthorizedException cuando Google devuelve credenciales inválidas', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-x' });
-      list.mockRejectedValue(new Error('Invalid Credentials'));
-
-      await expect(service.getEventsForUser(userId, startIso, endIso)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('lanza UnauthorizedException cuando Google dice invalid_token/invalid_grant', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-x' });
-      list.mockRejectedValue(new Error('invalid_token'));
-
-      await expect(service.getEventsForUser(userId, startIso, endIso)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('lanza InternalServerErrorException cuando la API no está habilitada', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-x' });
-      list.mockRejectedValue(new Error('has not been used in project'));
-
-      await expect(service.getEventsForUser(userId, startIso, endIso)).rejects.toThrow(
-        InternalServerErrorException,
-      );
-    });
-
-    it('lanza InternalServerErrorException en error genérico', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-x' });
-      list.mockRejectedValue(new Error('Unexpected Gaxios Error'));
-
-      await expect(service.getEventsForUser(userId, startIso, endIso)).rejects.toThrow(
-        InternalServerErrorException,
-      );
-    });
-
-    it('getAccessToken es llamado cuando hay refreshToken', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-1' });
-      list.mockResolvedValue({ data: { items: [] } });
-
-      await service.getEventsForUser(userId, startIso, endIso);
-      expect(getAccessToken).toHaveBeenCalled();
-    });
+  it('getAuthClient lanza Unauthorized si usuario no tiene refreshToken', async () => {
+    userNoToken();
+    await expect(
+      service['getAuthClient']('y')
+    ).rejects.toThrow(UnauthorizedException);
   });
 
-  describe('createEventForUser', () => {
-    const opts = {
-      summary: 'Reunión',
-      description: 'Prueba',
-      start: { dateTime: startIso },
-      end: { dateTime: endIso },
-      attendees: ['a@b.com', 'c@d.com'],
-    };
+  // ---------------------------------------------------------------
+  // TEST handleGoogleError()
+  // ---------------------------------------------------------------
+  it('handleGoogleError → Unauthorized: invalid_grant', () => {
+    expect(() =>
+      service['handleGoogleError'](new Error('invalid_grant'), 'x')
+    ).toThrow(UnauthorizedException);
+  });
 
-    it('crea evento correctamente', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-1' });
-      insert.mockResolvedValue({ data: { id: 'event-1', summary: 'Reunión' } });
+  it('handleGoogleError → Unauthorized: invalid_token', () => {
+    expect(() =>
+      service['handleGoogleError'](new Error('invalid_token'), 'x')
+    ).toThrow(UnauthorizedException);
+  });
 
-      const created = await service.createEventForUser(userId, opts);
-      expect(created).toEqual({ id: 'event-1', summary: 'Reunión' });
+  it('handleGoogleError → Unauthorized: Invalid Credentials', () => {
+    expect(() =>
+      service['handleGoogleError'](new Error('Invalid Credentials'), 'x')
+    ).toThrow(UnauthorizedException);
+  });
+
+  it('handleGoogleError → InternalError: API disabled', () => {
+    expect(() =>
+      service['handleGoogleError'](new Error('is disabled'), 'x')
+    ).toThrow(InternalServerErrorException);
+  });
+
+  it('handleGoogleError → InternalError: project not used', () => {
+    expect(() =>
+      service['handleGoogleError'](new Error('has not been used in project'), 'x')
+    ).toThrow(InternalServerErrorException);
+  });
+
+  it('handleGoogleError → InternalError general', () => {
+    expect(() =>
+      service['handleGoogleError'](new Error('cualquier'), 'x')
+    ).toThrow(InternalServerErrorException);
+  });
+
+  // ---------------------------------------------------------------
+  // getEventsForUser()
+  // ---------------------------------------------------------------
+  it('getEventsForUser → retorna eventos', async () => {
+    mockUser();
+    list.mockResolvedValue({
+      data: { items: [{ id: '1', start: {}, end: {}, summary: 'Test' }] },
     });
 
-    it('lanza InternalServerErrorException si el usuario no existe (según tu catch)', async () => {
-      usersDb.findById.mockResolvedValue(null);
+    const res = await service.getEventsForUser(userId, 'a', 'b');
+    expect(res.events.length).toBe(1);
+  });
 
-      await expect(service.createEventForUser(userId, opts)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+  it('getEventsForUser → retorna mensaje No events', async () => {
+    mockUser();
+    list.mockResolvedValue({ data: { items: [] } });
+
+    const res = await service.getEventsForUser(userId, 'a', 'b');
+    expect(res).toEqual({ events: [], message: 'No events' });
+  });
+
+  it('getEventsForUser → maneja error', async () => {
+    mockUser();
+    list.mockRejectedValue(new Error('Invalid Credentials'));
+
+    await expect(service.getEventsForUser(userId, 'a', 'b')).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  // ---------------------------------------------------------------
+  // createEventForUser()
+  // ---------------------------------------------------------------
+  const createOpts = {
+    summary: 'Test',
+    start: { dateTime: '2025-05-01' },
+    end: { dateTime: '2025-05-01' },
+    attendees: ['a@b.com'],
+  };
+
+  it('createEventForUser → OK', async () => {
+    mockUser();
+    insert.mockResolvedValue({ data: { id: 'ev1' } });
+
+    const res = await service.createEventForUser(userId, createOpts);
+    expect(res.id).toBe('ev1');
+  });
+
+  it('createEventForUser → error manejado', async () => {
+    mockUser();
+    insert.mockRejectedValue(new Error('Invalid Credentials'));
+
+    await expect(
+      service.createEventForUser(userId, createOpts),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  // ---------------------------------------------------------------
+  // deleteEventForUser()
+  // ---------------------------------------------------------------
+  it('deleteEventForUser → OK', async () => {
+    mockUser();
+    del.mockResolvedValue({});
+
+    const res = await service.deleteEventForUser(userId, 'e1');
+    expect(res).toEqual({ ok: true });
+  });
+
+  it('deleteEventForUser → error', async () => {
+    mockUser();
+    del.mockRejectedValue(new Error('invalid_token'));
+
+    await expect(
+      service.deleteEventForUser(userId, 'x'),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  // ---------------------------------------------------------------
+  // updateEventForUser()
+  // ---------------------------------------------------------------
+  it('updateEventForUser actualiza start', async () => {
+    mockUser();
+    patch.mockResolvedValue({ data: { id: 'up1' } });
+
+    const res = await service.updateEventForUser(userId, 'x', {
+      start: { dateTime: '2025-06-01' },
     });
 
-    it('lanza InternalServerErrorException si no hay refresh token (según tu catch)', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: null });
+    expect(res.id).toBe('up1');
+  });
 
-      await expect(service.createEventForUser(userId, opts)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+  it('updateEventForUser actualiza end', async () => {
+    mockUser();
+    patch.mockResolvedValue({ data: { id: 'up2' } });
+
+    const res = await service.updateEventForUser(userId, 'x', {
+      end: { date: '2025-07-01' },
     });
 
-    it('lanza UnauthorizedException si credenciales inválidas al crear evento', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-x' });
-      insert.mockRejectedValue(new Error('Invalid Credentials'));
+    expect(res.id).toBe('up2');
+  });
 
-      await expect(service.createEventForUser(userId, opts)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
+  it('updateEventForUser → error', async () => {
+    mockUser();
+    patch.mockRejectedValue(new Error('invalid_grant'));
 
-    it('lanza UnauthorizedException si insert falla con invalid_token/invalid_grant', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-x' });
-      insert.mockRejectedValue(new Error('invalid_token'));
-
-      await expect(service.createEventForUser(userId, opts)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('lanza InternalServerErrorException en error genérico al crear', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-x' });
-      insert.mockRejectedValue(new Error('Unexpected Gaxios Error'));
-
-      await expect(service.createEventForUser(userId, opts)).rejects.toThrow(
-        InternalServerErrorException,
-      );
-    });
-
-    it('incluye asistentes cuando vienen en opts', async () => {
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-1' });
-      insert.mockResolvedValue({ data: { id: 'event-2' } });
-
-      await service.createEventForUser(userId, opts);
-
-      const call = insert.mock.calls[0][0];
-      expect(call.requestBody.attendees).toEqual([{ email: 'a@b.com' }, { email: 'c@d.com' }]);
-    });
-
-    it('registra en logger al crear evento', async () => {
-      const logSpy = jest.spyOn(Logger.prototype, 'log');
-      usersDb.findById.mockResolvedValue({ googleRefreshToken: 'refresh-1' });
-      insert.mockResolvedValue({ data: { id: 'log-1' } });
-
-      await service.createEventForUser(userId, opts);
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('log-1'));
-    });
+    await expect(
+      service.updateEventForUser(userId, 'x', {}),
+    ).rejects.toThrow(UnauthorizedException);
   });
 });

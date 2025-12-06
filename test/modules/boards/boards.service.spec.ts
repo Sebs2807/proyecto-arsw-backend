@@ -4,11 +4,11 @@ import { BoardsDBService } from 'src/database/dbservices/boards.dbservice';
 import { UsersDBService } from 'src/database/dbservices/users.dbservice';
 import { BoardEntity } from 'src/database/entities/board.entity';
 import { UserEntity } from 'src/database/entities/user.entity';
-import {
-  ForbiddenException,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+
+beforeAll(() => {
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+});
 
 describe('BoardsService', () => {
   let service: BoardsService;
@@ -16,16 +16,28 @@ describe('BoardsService', () => {
   let usersDbService: UsersDBService;
 
   const mockUser: UserEntity = { id: '1', email: 'test@example.com' } as UserEntity;
+  const mockWorkspace = {
+    id: 'ws1',
+    name: 'Mock Workspace',
+    users: [],
+    boards: [],
+    agent: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
   const mockBoard: BoardEntity = {
     id: '1',
     title: 'Test Board',
-    description: 'Test Description',
+    description: 'Descripcion del board',
     createdBy: mockUser,
     members: [mockUser],
-    workspace: { id: 'ws1' } as any,
-    color: '#2E2E5C',
+    workspace: mockWorkspace,
+    color: '#FFFFFF',
     createdAt: new Date(),
     updatedAt: new Date(),
+    lists: [],
+    agents: [],
   };
 
   const mockRepository = {
@@ -86,9 +98,7 @@ describe('BoardsService', () => {
     });
 
     it('debe ignorar miembros nulos', async () => {
-      mockUsersDbService.findById
-        .mockResolvedValueOnce(mockUser)
-        .mockResolvedValueOnce(null);
+      mockUsersDbService.findById.mockResolvedValueOnce(mockUser).mockResolvedValueOnce(null);
 
       await service.createBoard('Board', '', '1', ['1', '2'], 'ws1');
       expect(usersDbService.findById).toHaveBeenCalledTimes(2);
@@ -131,6 +141,16 @@ describe('BoardsService', () => {
         service.findAll({ workspaceId: 'ws1', page: 1, limit: 10 } as any, '1'),
       ).rejects.toThrow(ForbiddenException);
     });
+
+      it('debe aplicar filtro de búsqueda en findAll', async () => {
+      const queryBoard = { search: 'abc', workspaceId: 'ws1', page: 1, limit: 10 };
+      await service.findAll(queryBoard as any, '1');
+
+      expect(mockQuery.andWhere).toHaveBeenCalledWith(
+        'LOWER(board.title) LIKE LOWER(:search)',
+        { search: '%abc%' },
+      );
+    });
   });
 
   describe('findOne', () => {
@@ -161,25 +181,25 @@ describe('BoardsService', () => {
         throw new Error('unexpected fail');
       });
 
-      await expect(
-        service.updateBoard('1', { title: 'Crash test' }),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(service.updateBoard('1', { title: 'Crash test' })).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('debe lanzar InternalServerErrorException si no se encuentra el board al actualizar con memberIds', async () => {
       mockRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(
-        service.updateBoard('1', { memberIds: ['1'] }),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(service.updateBoard('1', { memberIds: ['1'] })).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('debe lanzar InternalServerErrorException si el update del repositorio falla', async () => {
       mockRepository.update.mockRejectedValueOnce(new Error('DB fail'));
 
-      await expect(
-        service.updateBoard('1', { title: 'fallo de base de datos' }),
-      ).rejects.toThrow(InternalServerErrorException);
+      await expect(service.updateBoard('1', { title: 'fallo de base de datos' })).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('debe manejar correctamente el caso de memberIds vacíos sin lanzar error', async () => {
@@ -200,4 +220,128 @@ describe('BoardsService', () => {
       expect(result).toEqual({ deleted: true });
     });
   });
+
+  describe('findManyAutocomplete', () => {
+    let mockQuery: any;
+
+    beforeEach(() => {
+      mockQuery = {
+        leftJoin: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([mockBoard]),
+        getCount: jest.fn().mockResolvedValue(1),
+      };
+
+      mockRepository.createQueryBuilder.mockReturnValue(mockQuery);
+    });
+
+    it('debe retornar resultados sin filtros adicionales', async () => {
+      const result = await service.findManyAutocomplete({
+        page: 1,
+        limit: 10,
+        workspaceId: 'ws1',
+      });
+
+      expect(mockRepository.createQueryBuilder).toHaveBeenCalled();
+      expect(mockQuery.where).toHaveBeenCalledWith('workspace.id = :workspaceId', { workspaceId: 'ws1' });
+      expect(result.total).toBe(1);
+      expect(result.items.length).toBe(1);
+    });
+
+    it('debe aplicar búsqueda si search está presente', async () => {
+      await service.findManyAutocomplete({
+        search: 'test',
+        workspaceId: 'ws1',
+        page: 1,
+        limit: 10,
+      });
+
+      expect(mockQuery.andWhere).toHaveBeenCalledWith(
+        'LOWER(board.title) LIKE LOWER(:search)',
+        { search: '%test%' },
+      );
+    });
+
+    it('debe excluir IDs cuando excludeIds está presente', async () => {
+      await service.findManyAutocomplete({
+        workspaceId: 'ws1',
+        excludeIds: ['10', '20'],
+        page: 1,
+        limit: 10,
+      });
+
+      expect(mockQuery.andWhere).toHaveBeenCalledWith(
+        'board.id NOT IN (:...excludeIds)',
+        { excludeIds: ['10', '20'] },
+      );
+    });
+
+    it('debe lanzar error si la consulta falla', async () => {
+      mockQuery.getCount.mockRejectedValueOnce(new Error('DB error'));
+
+      await expect(
+        service.findManyAutocomplete({
+          workspaceId: 'ws1',
+          page: 1,
+          limit: 10,
+        }),
+      ).rejects.toThrow('Failed to fetch boards');
+    });
+  });
+
+  describe('updateBoard con memberIds', () => {
+    it('debe actualizar un board con nuevos miembros', async () => {
+      const fakeBoard = { id: '1', members: [], title: 'old' };
+      mockRepository.findOne.mockResolvedValue(fakeBoard);
+
+      usersDbService.repository = {
+        findBy: jest.fn().mockResolvedValue([mockUser]),
+      };
+
+      mockRepository.save = jest.fn().mockResolvedValue({
+        id: '1',
+        members: [mockUser],
+      });
+
+      const result = await service.updateBoard('1', {
+        memberIds: ['1'],
+        title: 'Nuevo',
+      });
+
+      expect(usersDbService.repository.findBy).toHaveBeenCalledWith({
+        id: expect.any(Object),
+      });
+      expect(mockRepository.save).toHaveBeenCalled();
+      expect(result.members).toHaveLength(1);
+    });
+  });
+
+  it('debe continuar incluso si algunos usuarios no existen', async () => {
+    const fakeBoard = { id: '1', members: [] };
+    mockRepository.findOne.mockResolvedValue(fakeBoard);
+
+    usersDbService.repository = {
+      findBy: jest.fn().mockResolvedValue([]),
+    };
+
+    mockRepository.save = jest.fn().mockResolvedValue(fakeBoard);
+
+    const result = await service.updateBoard('1', {
+      memberIds: ['no-existe'],
+    });
+
+    expect(result).toEqual(fakeBoard);
+  });
+
+  it('debe lanzar error si delete falla', async () => {
+    mockRepository.delete.mockRejectedValueOnce(new Error('fail'));
+
+    await expect(service.deleteBoard('1')).rejects.toThrow();
+  });
+
 });
