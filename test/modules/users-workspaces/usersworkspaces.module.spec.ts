@@ -10,7 +10,7 @@ jest.mock('@qdrant/js-client-rest', () => {
       search: jest.fn(),
     })),
   };
-});
+}, { virtual: true });
 
 jest.mock('@nestjs/typeorm', () => {
   class MockTypeOrmModuleForFeature {}

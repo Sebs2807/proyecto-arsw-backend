@@ -1,3 +1,5 @@
+jest.mock('openai');
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ListService } from '../../../src/app/modules/lists/lists.service';
 import { ListEntity } from '../../../src/database/entities/list.entity';
