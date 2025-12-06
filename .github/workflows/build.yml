@@ -148,6 +148,26 @@ jobs:
             fi
             echo "Migrations completed successfully inside Azure VNet."
 
+      - name: Run Database Migrations 🚀
+        run: |
+          ACR="${{ secrets.ACR_NAME }}.azurecr.io"
+          IMAGE_NAME="synapse-backend"
+          TAG="${GITHUB_SHA::7}"
+          
+          echo "Executing TypeORM migrations on production database..."
+          
+          docker run --rm \
+            --env NODE_ENV=production \
+            --env DB_HOST="${{ secrets.DB_HOST }}" \
+            --env DB_PORT="${{ secrets.DB_PORT }}" \
+            --env DB_USER="${{ secrets.DB_USER }}" \
+            --env DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            --env DB_NAME="${{ secrets.DB_NAME }}" \
+            $ACR/$IMAGE_NAME:$TAG \
+            /bin/sh -c "npm run typeorm migration:run -- -d dist/database/data-source.js"
+            
+          echo "Migrations completed successfully."
+
       - name: Deploy to Azure Container App
         uses: azure/CLI@v1
         with:
