@@ -68,8 +68,6 @@ jobs:
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.verbose=true
   
----
-  
   deploy_to_acr:
     needs: build
     runs-on: ubuntu-latest
