@@ -6,9 +6,9 @@ import * as Twilio from 'twilio';
 
 @Injectable()
 export class TwilioService {
-  private client: Twilio.Twilio;
+  private readonly client: Twilio.Twilio;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
     const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
 
