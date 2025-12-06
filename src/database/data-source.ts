@@ -1,12 +1,10 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { join } from 'node:path';
-import { readFileSync } from 'node:fs';
 
 const sslConfig =
   process.env.DB_SSL === 'true'
     ? {
-        ca: readFileSync(join(__dirname, '..', '..', 'certs', 'ca.pem')),
-        rejectUnauthorized: true,
+        rejectUnauthorized: false,
       }
     : undefined;
 

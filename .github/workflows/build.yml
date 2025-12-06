@@ -147,7 +147,7 @@ jobs:
                 DB_USER=${{ secrets.DB_USER }} \
                 DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
                 DB_NAME=${{ secrets.DB_NAME }} \
-                DB_SSL=${{ secrets.DB_SSL || 'false' }} 
+                DB_SSL=true 
 
             # --- LÓGICA DE ESPERA Y LOGS ---
             
