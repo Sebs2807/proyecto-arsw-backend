@@ -67,13 +67,16 @@ jobs:
             -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/main.ts,**/dist/**" \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.verbose=true
+  
+---
+  
   deploy_to_acr:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Usar v4 para consistencia
 
       - name: Azure Login with Credentials
         uses: azure/login@v1
@@ -96,21 +99,23 @@ jobs:
           docker tag $ACR_HOST/$IMAGE_NAME:$TAG $ACR_HOST/$IMAGE_NAME:latest
           docker push $ACR_HOST/$IMAGE_NAME:latest
 
-      - name: Run Database Migrations (via ACI in VNet)
+      - name: Run Database Migrations (via ACI in VNet) 🚀
         uses: azure/CLI@v1
         with:
           inlineScript: |
             ACR_HOST="${{ secrets.ACR_NAME }}.azurecr.io"
-            SHA="${{ github.sha }}"
-            SHORT_SHA="${SHA:0:7}"
-            IMAGE_TAG="$ACR_HOST/synapse-backend:$SHORT_SHA"
+            TAG="${{ github.sha::7 }}"
+            IMAGE_TAG="$ACR_HOST/synapse-backend:$TAG"
             RG_NAME="sd-synapse-4d-rg"
-            MIG_JOB_NAME="migrator-$SHORT_SHA"
+            MIG_JOB_NAME="migrator-$TAG"
             
             VNET_NAME="${{ secrets.RESOURCE_PREFIX }}-vnet" 
+            # Subnet de migración basado en el último input
             SUBNET_NAME="subnet-migration" 
 
             echo "Starting ACI job $MIG_JOB_NAME in VNet to run migrations..."
+            
+            # Crear el contenedor de ACI con recursos definidos
             az container create \
               --resource-group $RG_NAME \
               --name $MIG_JOB_NAME \
@@ -131,26 +136,37 @@ jobs:
                 DB_PORT=${{ secrets.DB_PORT }} \
                 DB_USER=${{ secrets.DB_USER }} \
                 DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-                DB_NAME=${{ secrets.DB_NAME }}
+                DB_NAME=${{ secrets.DB_NAME }} \
+                DB_SSL=${{ secrets.DB_SSL || 'false' }} # Soporte para SSL opcional
             
-            echo "Waiting for migration job to complete..."
-            az container wait --name $MIG_JOB_NAME --resource-group $RG_NAME --timeout 600
+            # --- Monitoreo y Verificación (CORRECCIÓN) ---
+            
+            # Esperar 60 segundos para que ACI inicie y ejecute el comando
+            echo "Waiting 60 seconds for ACI execution..."
+            sleep 60 
 
+            # OBTENER LOGS para diagnosticar el exitCode: 1
+            echo "Fetching container logs for diagnosis..."
+            LOGS=$(az container logs --name $MIG_JOB_NAME --resource-group $RG_NAME 2>&1 || echo "Could not fetch logs.")
+            echo "--- Container Logs Start ---"
+            echo "$LOGS"
+            echo "--- Container Logs End ---"
+
+            # Verificar el código de salida final
             EXIT_CODE=$(az container show \
               --name $MIG_JOB_NAME \
               --resource-group $RG_NAME \
               --query "containers[0].instanceView.currentState.exitCode" \
               --output tsv)
             
+            # Limpiar el contenedor inmediatamente
             az container delete --name $MIG_JOB_NAME --resource-group $RG_NAME --yes
 
             if [ "$EXIT_CODE" -ne 0 ]; then
-              echo "Migration FAILED with exit code $EXIT_CODE."
+              echo "Migration FAILED with exit code $EXIT_CODE. Review logs above for TypeORM error (e.g., connection issue, credentials, or missing entrypoint)."
               exit 1
             fi
             echo "Migrations completed successfully inside Azure VNet."
-
-
 
       - name: Deploy to Azure Container App
         uses: azure/CLI@v1
