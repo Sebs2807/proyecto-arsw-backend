@@ -115,6 +115,7 @@ jobs:
               --resource-group $RG_NAME \
               --name $MIG_JOB_NAME \
               --image $IMAGE_TAG \
+              --os-type Linux \
               --registry-login-server $ACR_HOST \
               --registry-username ${{ secrets.ACR_USERNAME }} \
               --registry-password ${{ secrets.ACR_PASSWORD }} \
