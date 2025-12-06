@@ -9,12 +9,21 @@ import { AllExceptionsFilter } from './common/filters/http-interceptor.filter';
 import { RealtimeGateway } from './gateways/realtime.gateway';
 
 export async function bootstrap() {
-  const httpsOptions = {
-    key: fs.readFileSync('./certs/synapse+1-key.pem') as Buffer,
-    cert: fs.readFileSync('./certs/synapse+1.pem') as Buffer,
-  };
-
-  const app = await NestFactory.create(AppModule, { httpsOptions });
+const isLocal = process.env.NODE_ENV === 'local' || process.env.NODE_ENV === 'development';
+  let app;
+  
+  if (isLocal) {
+    console.log('Running in Local/Dev mode with HTTPS.');
+    const httpsOptions = {
+        key: fs.readFileSync('./certs/synapse+1-key.pem') as Buffer,
+        cert: fs.readFileSync('./certs/synapse+1.pem') as Buffer,
+    };
+    // Usar NestFactory.create con las opciones HTTPS
+    app = await NestFactory.create(AppModule, { httpsOptions });
+  } else {
+    console.log('Running in Production/Azure mode with HTTP.');
+    app = await NestFactory.create(AppModule);
+  }
   app.use(cookieParser());
 
   // Swagger
@@ -54,5 +63,7 @@ export async function bootstrap() {
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  await app.listen(3000);
+    await app.listen(30);
 }
+
+void bootstrap();
