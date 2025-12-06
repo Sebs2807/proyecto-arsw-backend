@@ -87,7 +87,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 # Actualizado a v4
+        uses: actions/checkout@v4
 
       - name: Azure Login with Credentials
         uses: azure/login@v1
@@ -102,7 +102,8 @@ jobs:
         run: |
           ACR_HOST="${{ secrets.ACR_NAME }}.azurecr.io"
           IMAGE_NAME="synapse-backend"
-          TAG="${GITHUB_SHA::7}"
+          # CORRECCIÓN: Usar la variable de entorno GITHUB_SHA con expansión de shell
+          TAG="${GITHUB_SHA::7}" 
 
           docker build -t $ACR_HOST/$IMAGE_NAME:$TAG .
           docker push $ACR_HOST/$IMAGE_NAME:$TAG
@@ -115,7 +116,7 @@ jobs:
         with:
           inlineScript: |
             ACR_HOST="${{ secrets.ACR_NAME }}.azurecr.io"
-            TAG="${{ github.sha::7 }}" # Simplificación de TAG
+            TAG="${GITHUB_SHA::7}" 
             IMAGE_TAG="$ACR_HOST/synapse-backend:$TAG"
             RG_NAME="sd-synapse-4d-rg"
             MIG_JOB_NAME="migrator-$TAG"
@@ -146,20 +147,18 @@ jobs:
                 DB_USER=${{ secrets.DB_USER }} \
                 DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
                 DB_NAME=${{ secrets.DB_NAME }} \
-                DB_SSL=${{ secrets.DB_SSL || 'false' }} # Añadimos SSL para diagnosticar
+                DB_SSL=${{ secrets.DB_SSL || 'false' }} 
 
-            # --- CORRECCIÓN DE LA LÓGICA DE ESPERA Y LOGS ---
+            # --- LÓGICA DE ESPERA Y LOGS ---
             
             echo "Waiting 60 seconds for ACI execution and fetching logs..."
-            sleep 60 # Damos tiempo para que el ACI ejecute el comando
+            sleep 60
 
-            # OBTENER LOGS: CRÍTICO PARA VER POR QUÉ FALLA TYPEORM (exitCode: 1)
             LOGS=$(az container logs --name $MIG_JOB_NAME --resource-group $RG_NAME 2>&1 || echo "Could not fetch logs.")
             echo "--- Container Logs Start ---"
             echo "$LOGS"
             echo "--- Container Logs End ---"
 
-            # Verificar el código de salida final
             EXIT_CODE=$(az container show \
               --name $MIG_JOB_NAME \
               --resource-group $RG_NAME \
