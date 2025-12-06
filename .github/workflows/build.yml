@@ -1,76 +1,4 @@
-name: SonarCloud Full Analysis
-
-on:
-  push:
-    branches:
-      - main
-      - develop
-      - 'feature/*'
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-jobs:
-  build:
-    name: Build and Analyze
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      pull-requests: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Cache Node.js modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        run: npm run build --if-present
-
-      - name: Run tests and generate coverage
-        run: npm run test:cov --if-present
-
-      - name: Fix LCOV paths for SonarCloud
-        if: always()
-        run: |
-          echo "Corrigiendo rutas de Windows en coverage/lcov.info..."
-          sed -i 's|\\|/|g' coverage/lcov.info
-          head -20 coverage/lcov.info
-
-      - name: SonarCloud Scan
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          echo "Running SonarCloud analysis..."
-          npx sonar-scanner \
-            -Dsonar.projectKey=Sebs2807_proyecto-arsw-backend \
-            -Dsonar.organization=sebs2807 \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.sources=src \
-            -Dsonar.tests=src \
-            -Dsonar.test.inclusions="**/*.spec.ts,**/*.test.ts" \
-            -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/node_modules/**,**/main.ts,**/dist/**" \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-            -Dsonar.verbose=true
-
-  deploy_to_acr:
+deploy_to_acr:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -89,35 +17,64 @@ jobs:
 
       - name: Build & Push Docker Image
         run: |
-          ACR="${{ secrets.ACR_NAME }}.azurecr.io"
+          ACR_HOST="${{ secrets.ACR_NAME }}.azurecr.io"
           IMAGE_NAME="synapse-backend"
           TAG="${GITHUB_SHA::7}"
 
-          docker build -t $ACR/$IMAGE_NAME:$TAG .
-          docker push $ACR/$IMAGE_NAME:$TAG
+          docker build -t $ACR_HOST/$IMAGE_NAME:$TAG .
+          docker push $ACR_HOST/$IMAGE_NAME:$TAG
 
-          docker tag $ACR/$IMAGE_NAME:$TAG $ACR/$IMAGE_NAME:latest
-          docker push $ACR/$IMAGE_NAME:latest
+          docker tag $ACR_HOST/$IMAGE_NAME:$TAG $ACR_HOST/$IMAGE_NAME:latest
+          docker push $ACR_HOST/$IMAGE_NAME:latest
 
-      - name: Run Database Migrations 🚀
-        run: |
-          ACR="${{ secrets.ACR_NAME }}.azurecr.io"
-          IMAGE_NAME="synapse-backend"
-          TAG="${GITHUB_SHA::7}"
-          
-          echo "Executing TypeORM migrations on production database..."
-          
-          docker run --rm \
-            --env NODE_ENV=production \
-            --env DB_HOST="${{ secrets.DB_HOST }}" \
-            --env DB_PORT="${{ secrets.DB_PORT }}" \
-            --env DB_USER="${{ secrets.DB_USER }}" \
-            --env DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-            --env DB_NAME="${{ secrets.DB_NAME }}" \
-            $ACR/$IMAGE_NAME:$TAG \
-            /bin/sh -c "npm run typeorm migration:run -- -d dist/database/data-source.js"
+      - name: Run Database Migrations (via ACI in VNet)
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            ACR_HOST="${{ secrets.ACR_NAME }}.azurecr.io"
+            IMAGE_TAG="$ACR_HOST/synapse-backend:${{ github.sha::7 }}"
+            RG_NAME="sd-synapse-4d-rg"
+            MIG_JOB_NAME="migrator-${{ github.sha::7 }}"
             
-          echo "Migrations completed successfully."
+            VNET_NAME="${{ secrets.RESOURCE_PREFIX }}-vnet" 
+            SUBNET_NAME="subnet-aca" 
+
+            echo "Starting ACI job $MIG_JOB_NAME in VNet to run migrations..."
+            az container create \
+              --resource-group $RG_NAME \
+              --name $MIG_JOB_NAME \
+              --image $IMAGE_TAG \
+              --registry-login-server $ACR_HOST \
+              --registry-username ${{ secrets.ACR_USERNAME }} \
+              --registry-password ${{ secrets.ACR_PASSWORD }} \
+              --vnet $VNET_NAME \
+              --subnet $SUBNET_NAME \
+              --restart-policy Never \
+              --command-line "npm run typeorm migration:run -- -d dist/database/data-source.js" \
+              --environment-variables \
+                NODE_ENV=production \
+                DB_HOST=${{ secrets.DB_HOST }} \
+                DB_PORT=${{ secrets.DB_PORT }} \
+                DB_USER=${{ secrets.DB_USER }} \
+                DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+                DB_NAME=${{ secrets.DB_NAME }}
+            
+            echo "Waiting for migration job to complete..."
+            az container wait --name $MIG_JOB_NAME --resource-group $RG_NAME --timeout 600
+
+            EXIT_CODE=$(az container show \
+              --name $MIG_JOB_NAME \
+              --resource-group $RG_NAME \
+              --query "containers[0].instanceView.currentState.exitCode" \
+              --output tsv)
+            
+            az container delete --name $MIG_JOB_NAME --resource-group $RG_NAME --yes
+
+            if [ "$EXIT_CODE" -ne 0 ]; then
+              echo "Migration FAILED with exit code $EXIT_CODE."
+              exit 1
+            fi
+            echo "Migrations completed successfully inside Azure VNet."
 
       - name: Deploy to Azure Container App
         uses: azure/CLI@v1
