@@ -10,7 +10,6 @@ beforeAll(() => {
 
 jest.mock('@qdrant/js-client-rest', () => ({
   QdrantClient: jest.fn().mockImplementation(() => ({
-    getCollections: jest.fn(),
     upsert: jest.fn(),
     search: jest.fn(),
     delete: jest.fn(),
@@ -20,3 +19,22 @@ jest.mock('@qdrant/js-client-rest', () => ({
 jest.spyOn(console, 'error').mockImplementation(() => {});
 jest.spyOn(console, 'warn').mockImplementation(() => {});
 jest.spyOn(console, 'log').mockImplementation(() => {});
+
+jest.mock(
+  'livekit-server-sdk',
+  () => {
+    const mockAddGrant = jest.fn();
+    const mockToJwt = jest.fn(async () => 'mocked-jwt-token');
+
+    const AccessToken = jest.fn().mockImplementation((apiKey, apiSecret, options) => ({
+      apiKey,
+      apiSecret,
+      options,
+      addGrant: mockAddGrant,
+      toJwt: mockToJwt,
+    }));
+
+    return { AccessToken };
+  },
+  { virtual: true },
+);
