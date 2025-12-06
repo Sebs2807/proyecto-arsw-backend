@@ -74,7 +74,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 # Usar v4 para consistencia
+        uses: actions/checkout@v4 # Actualizado a v4
 
       - name: Azure Login with Credentials
         uses: azure/login@v1
@@ -102,18 +102,16 @@ jobs:
         with:
           inlineScript: |
             ACR_HOST="${{ secrets.ACR_NAME }}.azurecr.io"
-            TAG="${{ github.sha::7 }}"
+            TAG="${{ github.sha::7 }}" # Simplificación de TAG
             IMAGE_TAG="$ACR_HOST/synapse-backend:$TAG"
             RG_NAME="sd-synapse-4d-rg"
             MIG_JOB_NAME="migrator-$TAG"
             
             VNET_NAME="${{ secrets.RESOURCE_PREFIX }}-vnet" 
-            # Subnet de migración basado en el último input
             SUBNET_NAME="subnet-migration" 
 
             echo "Starting ACI job $MIG_JOB_NAME in VNet to run migrations..."
 
-            # Crear el contenedor de ACI con recursos definidos
             az container create \
               --resource-group $RG_NAME \
               --name $MIG_JOB_NAME \
@@ -135,16 +133,14 @@ jobs:
                 DB_USER=${{ secrets.DB_USER }} \
                 DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
                 DB_NAME=${{ secrets.DB_NAME }} \
-                DB_SSL=${{ secrets.DB_SSL || 'false' }} # Soporte para SSL opcional
-            
-            # --- Monitoreo y Verificación (CORRECCIÓN) ---
-            
-            # Esperar 60 segundos para que ACI inicie y ejecute el comando
-            echo "Waiting 60 seconds for ACI execution..."
-            sleep 60 
+                DB_SSL=${{ secrets.DB_SSL || 'false' }} # Añadimos SSL para diagnosticar
 
-            # OBTENER LOGS para diagnosticar el exitCode: 1
-            echo "Fetching container logs for diagnosis..."
+            # --- CORRECCIÓN DE LA LÓGICA DE ESPERA Y LOGS ---
+            
+            echo "Waiting 60 seconds for ACI execution and fetching logs..."
+            sleep 60 # Damos tiempo para que el ACI ejecute el comando
+
+            # OBTENER LOGS: CRÍTICO PARA VER POR QUÉ FALLA TYPEORM (exitCode: 1)
             LOGS=$(az container logs --name $MIG_JOB_NAME --resource-group $RG_NAME 2>&1 || echo "Could not fetch logs.")
             echo "--- Container Logs Start ---"
             echo "$LOGS"
@@ -158,11 +154,13 @@ jobs:
               --output tsv)
             
             az container delete --name $MIG_JOB_NAME --resource-group $RG_NAME --yes
+            
             if [ "$EXIT_CODE" -ne 0 ]; then
-              echo "Migration FAILED with exit code $EXIT_CODE."
+              echo "Migration FAILED with exit code $EXIT_CODE. CHECK LOGS ABOVE for TypeORM error (SSL, credentials, or file path)."
               exit 1
             fi
             echo "Migrations completed successfully inside Azure VNet."
+
       - name: Deploy to Azure Container App
         uses: azure/CLI@v1
         with:
