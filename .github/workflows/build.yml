@@ -101,9 +101,11 @@ jobs:
         with:
           inlineScript: |
             ACR_HOST="${{ secrets.ACR_NAME }}.azurecr.io"
-            IMAGE_TAG="$ACR_HOST/synapse-backend:${{ github.sha::7 }}"
+            SHA="${{ github.sha }}"
+            SHORT_SHA="${SHA:0:7}"
+            IMAGE_TAG="$ACR_HOST/synapse-backend:$SHORT_SHA"
             RG_NAME="sd-synapse-4d-rg"
-            MIG_JOB_NAME="migrator-${{ github.sha::7 }}"
+            MIG_JOB_NAME="migrator-$SHORT_SHA"
             
             VNET_NAME="${{ secrets.RESOURCE_PREFIX }}-vnet" 
             SUBNET_NAME="subnet-aca" 
