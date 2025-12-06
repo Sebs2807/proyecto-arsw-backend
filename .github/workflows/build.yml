@@ -108,7 +108,7 @@ jobs:
             MIG_JOB_NAME="migrator-$SHORT_SHA"
             
             VNET_NAME="${{ secrets.RESOURCE_PREFIX }}-vnet" 
-            SUBNET_NAME="subnet-aca" 
+            SUBNET_NAME="subnet-migration" 
 
             echo "Starting ACI job $MIG_JOB_NAME in VNet to run migrations..."
             az container create \
