@@ -65,3 +65,5 @@ const isLocal = process.env.NODE_ENV === 'local' || process.env.NODE_ENV === 'de
 
   await app.listen(3000);
 }
+
+void bootstrap();
